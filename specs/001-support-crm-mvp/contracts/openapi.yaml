@@ -427,6 +427,12 @@ paths:
       tags: [Dashboard]
       responses:
         '200': { description: Agent dashboard, content: { application/json: { schema: { $ref: '#/components/schemas/AgentDashboard' } } } }
+  /lookups:
+    get:
+      tags: [Dashboard]
+      summary: Reference data for staff forms and filters (active departments, branches, categories, agents)
+      responses:
+        '200': { description: Lookups, content: { application/json: { schema: { $ref: '#/components/schemas/Lookups' } } } }
   /tasks:
     get:
       tags: [Tasks]
@@ -1495,14 +1501,55 @@ components:
     # ---------- dashboard / tasks / quick replies / notifications
     AgentDashboard:
       type: object
+      description: |
+        Personal work view. SLA-based lists (at risk / overdue) are added with US7; tasks and
+        unread notification counts with US4 tasks and US7 notifications.
       properties:
-        countsByStatus: { type: object, additionalProperties: { type: integer } }
-        atRisk: { type: array, items: { $ref: '#/components/schemas/TicketSummary' } }
-        overdue: { type: array, items: { $ref: '#/components/schemas/TicketSummary' } }
-        assigned: { type: array, items: { $ref: '#/components/schemas/TicketSummary' } }
-        queueUnassignedCount: { type: integer }
-        tasksDueToday: { type: array, items: { $ref: '#/components/schemas/TaskItem' } }
-        unreadNotifications: { type: integer }
+        countsByStatus: { type: object, additionalProperties: { type: integer }, description: My assigned tickets by status }
+        myOpenCount: { type: integer }
+        assigned: { type: array, items: { $ref: '#/components/schemas/TicketSummary' }, description: 'My open tickets, highest priority first (max 10)' }
+        awaitingFirstResponse: { type: array, items: { $ref: '#/components/schemas/TicketSummary' }, description: 'My open tickets without an agent reply, oldest first (max 10)' }
+        queueUnassignedCount: { type: integer, description: Unassigned open tickets in my departments }
+        unassignedQueue: { type: array, items: { $ref: '#/components/schemas/TicketSummary' } }
+        newToday: { type: integer }
+        resolvedToday: { type: integer }
+        team:
+          description: Present only with the dashboard.team permission
+          oneOf:
+            - type: 'null'
+            - type: object
+              properties:
+                byStatus: { type: object, additionalProperties: { type: integer } }
+                byPriority: { type: object, additionalProperties: { type: integer } }
+                openByAgent:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      agentId: { type: string, format: uuid }
+                      fullName: { type: string }
+                      openTickets: { type: integer }
+    Lookups:
+      type: object
+      properties:
+        departments: { type: array, items: { $ref: '#/components/schemas/NamedRef' } }
+        branches: { type: array, items: { $ref: '#/components/schemas/NamedRef' } }
+        categories:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/NamedRef'
+              - type: object
+                properties: { departmentId: { type: [string, 'null'], format: uuid } }
+        agents:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string, format: uuid }
+              fullName: { type: string }
+              isAvailable: { type: boolean }
+              departmentIds: { type: array, items: { type: string, format: uuid } }
     TaskUpsert:
       type: object
       required: [title, dueAt]

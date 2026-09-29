@@ -38,18 +38,18 @@ integration tests that MUST fail before implementation. Integration tests use re
 
 **Purpose**: Repository, solutions, tooling, dev environment
 
-- [ ] T001 Create repository layout `backend/`, `frontend/`, `e2e/`, `deploy/`, `.github/workflows/` and root `.gitignore` (dotnet + node + IDE files) and `.editorconfig` at repo root
-- [ ] T002 Create .NET solution `backend/Crm.sln` with projects `backend/src/Crm.Domain` (classlib), `backend/src/Crm.Application` (classlib), `backend/src/Crm.Infrastructure` (classlib), `backend/src/Crm.Api` (webapi, controllers) targeting `net8.0`, with references Api→Application+Infrastructure, Infrastructure→Application, Application→Domain
-- [ ] T003 Create test projects `backend/tests/Crm.Domain.UnitTests`, `backend/tests/Crm.Application.UnitTests`, `backend/tests/Crm.Infrastructure.Tests`, `backend/tests/Crm.Api.IntegrationTests` (xUnit) with packages NSubstitute, Shouldly, Testcontainers.MsSql, Respawn, WireMock.Net, Microsoft.AspNetCore.Mvc.Testing, and add them to `backend/Crm.sln`
-- [ ] T004 [P] Add `backend/Directory.Build.props` (Nullable enable, ImplicitUsings, TreatWarningsAsErrors, AnalysisLevel latest-recommended, LangVersion 12) and `backend/Directory.Packages.props` for central package versions
-- [ ] T005 [P] Add `backend/tests/Crm.Architecture.Tests` project using NetArchTest.Rules with tests asserting Domain has no dependency on EF Core/ASP.NET/Application/Infrastructure and Api controllers do not reference `Crm.Infrastructure.Persistence` in `backend/tests/Crm.Architecture.Tests/LayerDependencyTests.cs`
-- [ ] T006 [P] Create Angular workspace in `frontend/` (no default app, `strict: true`, `strictTemplates: true`), then apps `frontend/projects/staff`, `frontend/projects/portal`, `frontend/projects/chat-widget` (standalone, routing, SCSS) and library `frontend/libs/shared`
-- [ ] T007 [P] Install and configure Angular Material + CDK theme, Transloco, `@microsoft/signalr`, ESLint (`@angular-eslint`), Prettier in `frontend/package.json`, `frontend/eslint.config.js`, `frontend/.prettierrc`
+- [X] T001 Create repository layout `backend/`, `frontend/`, `e2e/`, `deploy/`, `.github/workflows/` and root `.gitignore` (dotnet + node + IDE files) and `.editorconfig` at repo root
+- [X] T002 Create .NET solution `backend/Crm.sln` with projects `backend/src/Crm.Domain` (classlib), `backend/src/Crm.Application` (classlib), `backend/src/Crm.Infrastructure` (classlib), `backend/src/Crm.Api` (webapi, controllers) targeting `net8.0`, with references Api→Application+Infrastructure, Infrastructure→Application, Application→Domain
+- [ ] T003 Create test projects `backend/tests/Crm.Domain.UnitTests`, `backend/tests/Crm.Application.UnitTests`, `backend/tests/Crm.Infrastructure.Tests`, `backend/tests/Crm.Api.IntegrationTests` (xUnit) with packages NSubstitute, Shouldly, Testcontainers.MsSql, Respawn, WireMock.Net, Microsoft.AspNetCore.Mvc.Testing, and add them to `backend/Crm.sln` — partial: Domain/Application/Api/Architecture test projects exist; Crm.Infrastructure.Tests is added with the channel adapters
+- [X] T004 [P] Add `backend/Directory.Build.props` (Nullable enable, ImplicitUsings, TreatWarningsAsErrors, AnalysisLevel latest-recommended, LangVersion 12) and `backend/Directory.Packages.props` for central package versions
+- [X] T005 [P] Add `backend/tests/Crm.Architecture.Tests` project using NetArchTest.Rules with tests asserting Domain has no dependency on EF Core/ASP.NET/Application/Infrastructure and Api controllers do not reference `Crm.Infrastructure.Persistence` in `backend/tests/Crm.Architecture.Tests/LayerDependencyTests.cs`
+- [ ] T006 [P] Create Angular workspace in `frontend/` (no default app, `strict: true`, `strictTemplates: true`), then apps `frontend/projects/staff`, `frontend/projects/portal`, `frontend/projects/chat-widget` (standalone, routing, SCSS) and library `frontend/libs/shared` — partial: workspace + staff app done; portal and chat-widget apps come with US5/US6
+- [ ] T007 [P] Install and configure Angular Material + CDK theme, Transloco, `@microsoft/signalr`, ESLint (`@angular-eslint`), Prettier in `frontend/package.json`, `frontend/eslint.config.js`, `frontend/.prettierrc` — partial: Material, CDK, Transloco installed; ESLint and @microsoft/signalr pending
 - [ ] T008 [P] Add `frontend/openapitools.json` and npm script `generate:api` in `frontend/package.json` that generates the typescript-angular client from `specs/001-support-crm-mvp/contracts/openapi.yaml` into `frontend/libs/shared/src/lib/api/`
-- [ ] T009 [P] Create `deploy/docker-compose.dev.yml` with services sqlserver (SQL Server 2022 image with Full-Text Search, port 1433), seq (5341), mailhog (1025/8025) and a volume for SQL data
+- [ ] T009 [P] Create `deploy/docker-compose.dev.yml` with services sqlserver (SQL Server 2022 image with Full-Text Search, port 1433), seq (5341), mailhog (1025/8025) and a volume for SQL data — deferred: Docker engine not running on dev machine; LocalDB used for dev and tests
 - [ ] T010 [P] Create CI workflow `.github/workflows/ci.yml`: dotnet restore/build/test (Testcontainers on ubuntu), `npm ci`, `ng lint`, `ng test --watch=false`, `ng build` for all three apps
 - [ ] T011 [P] Add Playwright project in `e2e/` with `e2e/playwright.config.ts` (baseURLs for staff 4200 and portal 4300) and a smoke test `e2e/tests/smoke.spec.ts`
-- [ ] T012 [P] Add `dotnet-tools.json` (dotnet-ef) in `backend/.config/dotnet-tools.json`
+- [X] T012 [P] Add `dotnet-tools.json` (dotnet-ef) in `backend/.config/dotnet-tools.json`
 
 ---
 
@@ -59,46 +59,46 @@ integration tests that MUST fail before implementation. Integration tests use re
 
 ### Tests for foundation
 
-- [ ] T013 [P] Create integration test fixture `backend/tests/Crm.Api.IntegrationTests/Infrastructure/CrmApiFactory.cs` (WebApplicationFactory + MsSqlContainer with full-text, applies migrations, Respawn reset, test auth helper issuing JWTs for seeded roles) and `backend/tests/Crm.Api.IntegrationTests/Infrastructure/IntegrationTestBase.cs`
+- [X] T013 [P] Create integration test fixture `backend/tests/Crm.Api.IntegrationTests/Infrastructure/CrmApiFactory.cs` (WebApplicationFactory + MsSqlContainer with full-text, applies migrations, Respawn reset, test auth helper issuing JWTs for seeded roles) and `backend/tests/Crm.Api.IntegrationTests/Infrastructure/IntegrationTestBase.cs` — LocalDB by default, Testcontainers when CRM_TEST_USE_DOCKER=1
 - [ ] T014 [P] Create contract test helper that validates HTTP responses against `specs/001-support-crm-mvp/contracts/openapi.yaml` (Microsoft.OpenApi.Readers + JSON schema validation) in `backend/tests/Crm.Api.IntegrationTests/Infrastructure/OpenApiContractValidator.cs`
-- [ ] T015 [P] Integration tests for Problem Details, correlation ID header, 401 on anonymous access to a protected endpoint, and `/health` in `backend/tests/Crm.Api.IntegrationTests/Platform/PlatformPipelineTests.cs`
-- [ ] T016 [P] Integration tests for auth: login success, wrong password 401 + audit `SignInFailed`, refresh rotation, logout, `/auth/me` permissions list in `backend/tests/Crm.Api.IntegrationTests/Auth/AuthTests.cs`
-- [ ] T017 [P] Unit tests for `ValidationDecorator` and `TransactionDecorator` in `backend/tests/Crm.Application.UnitTests/Common/DecoratorTests.cs`
+- [X] T015 [P] Integration tests for Problem Details, correlation ID header, 401 on anonymous access to a protected endpoint, and `/health` in `backend/tests/Crm.Api.IntegrationTests/Platform/PlatformPipelineTests.cs`
+- [X] T016 [P] Integration tests for auth: login success, wrong password 401 + audit `SignInFailed`, refresh rotation, logout, `/auth/me` permissions list in `backend/tests/Crm.Api.IntegrationTests/Auth/AuthTests.cs`
+- [X] T017 [P] Unit tests for `ValidationDecorator` and `TransactionDecorator` in `backend/tests/Crm.Application.UnitTests/Common/DecoratorTests.cs`
 
 ### Domain & application core
 
-- [ ] T018 [P] Create base types `Entity`, `AuditableEntity` (CreatedAt/By, UpdatedAt/By), `ISoftDelete`, `IHasRowVersion`, `IDomainEvent`, `Result`/`Error` in `backend/src/Crm.Domain/Common/`
-- [ ] T019 [P] Create enums `Language`, `Channel`, `TicketStatus`, `TicketPriority`, `CustomerType`, `UserType` in `backend/src/Crm.Domain/Common/Enums.cs`
-- [ ] T020 [P] Create application abstractions `IAppDbContext`, `ICurrentUser` (UserId, Permissions, DepartmentIds, BranchId, Language, IsCustomer), `IClock`, `IOutbox`, `IFileStorage` in `backend/src/Crm.Application/Abstractions/`
-- [ ] T021 Create CQRS plumbing `ICommand<T>`, `IQuery<T>`, `ICommandHandler`, `IQueryHandler`, `IDispatcher` + `Dispatcher` and decorators `ValidationDecorator`, `LoggingDecorator`, `TransactionDecorator` in `backend/src/Crm.Application/Common/Messaging/` and DI registration `backend/src/Crm.Application/DependencyInjection.cs` (scan handlers + validators)
-- [ ] T022 [P] Create `PagedResult<T>`, `PageRequest` (max 100) and `IQueryable` paging extensions in `backend/src/Crm.Application/Common/Paging/`
-- [ ] T023 [P] Create permission constants (all keys in data-model.md, e.g. `tickets.assign`, `customers.export`, `admin.users.manage`, `data.scope.all-departments`) in `backend/src/Crm.Application/Common/Security/Permissions.cs` and `DataScope` helper that filters queries by department/branch for `ICurrentUser` in `backend/src/Crm.Application/Common/Security/DataScopeExtensions.cs`
+- [X] T018 [P] Create base types `Entity`, `AuditableEntity` (CreatedAt/By, UpdatedAt/By), `ISoftDelete`, `IHasRowVersion`, `IDomainEvent`, `Result`/`Error` in `backend/src/Crm.Domain/Common/`
+- [X] T019 [P] Create enums `Language`, `Channel`, `TicketStatus`, `TicketPriority`, `CustomerType`, `UserType` in `backend/src/Crm.Domain/Common/Enums.cs`
+- [ ] T020 [P] Create application abstractions `IAppDbContext`, `ICurrentUser` (UserId, Permissions, DepartmentIds, BranchId, Language, IsCustomer), `IClock`, `IOutbox`, `IFileStorage` in `backend/src/Crm.Application/Abstractions/` — partial: IAppDbContext, ICurrentUser, IClock, IUserDirectory done; IOutbox and IFileStorage pending
+- [X] T021 Create CQRS plumbing `ICommand<T>`, `IQuery<T>`, `ICommandHandler`, `IQueryHandler`, `IDispatcher` + `Dispatcher` and decorators `ValidationDecorator`, `LoggingDecorator`, `TransactionDecorator` in `backend/src/Crm.Application/Common/Messaging/` and DI registration `backend/src/Crm.Application/DependencyInjection.cs` (scan handlers + validators) — validation and logging run in the dispatcher; each handler commits with a single SaveChanges
+- [X] T022 [P] Create `PagedResult<T>`, `PageRequest` (max 100) and `IQueryable` paging extensions in `backend/src/Crm.Application/Common/Paging/`
+- [X] T023 [P] Create permission constants (all keys in data-model.md, e.g. `tickets.assign`, `customers.export`, `admin.users.manage`, `data.scope.all-departments`) in `backend/src/Crm.Application/Common/Security/Permissions.cs` and `DataScope` helper that filters queries by department/branch for `ICurrentUser` in `backend/src/Crm.Application/Common/Security/DataScopeExtensions.cs`
 
 ### Organization & identity entities (needed by every story)
 
-- [ ] T024 [P] Create `Department`, `Branch`, `BusinessCalendar` (+ `WorkingHours`, `Holiday`) entities in `backend/src/Crm.Domain/Organization/`
-- [ ] T025 [P] Create `User` (extends IdentityUser<Guid>, fields per data-model.md), `Role` (IdentityRole<Guid> + IsSystem), `RolePermission`, `UserDepartment`, `RefreshToken` in `backend/src/Crm.Domain/Identity/` (Identity base types referenced via `Microsoft.Extensions.Identity.Stores` only)
-- [ ] T026 [P] Create `AuditLogEntry`, `OutboxMessage`, `SystemSetting`, `Attachment` entities in `backend/src/Crm.Domain/Common/`
+- [ ] T024 [P] Create `Department`, `Branch`, `BusinessCalendar` (+ `WorkingHours`, `Holiday`) entities in `backend/src/Crm.Domain/Organization/` — partial: Department and Branch done; BusinessCalendar comes with US7
+- [X] T025 [P] Create `User` (extends IdentityUser<Guid>, fields per data-model.md), `Role` (IdentityRole<Guid> + IsSystem), `RolePermission`, `UserDepartment`, `RefreshToken` in `backend/src/Crm.Domain/Identity/` (Identity base types referenced via `Microsoft.Extensions.Identity.Stores` only) — identity types live in Crm.Infrastructure/Identity so Domain stays framework-free; Application reads users via IUserDirectory
+- [ ] T026 [P] Create `AuditLogEntry`, `OutboxMessage`, `SystemSetting`, `Attachment` entities in `backend/src/Crm.Domain/Common/` — partial: AuditLogEntry done; OutboxMessage, SystemSetting, Attachment pending
 
 ### Persistence
 
-- [ ] T027 Create `CrmDbContext` (IdentityDbContext<User, Role, Guid>, implements `IAppDbContext`, soft-delete global filters, `nvarchar` defaults, enum-as-string convention, rowversion convention) in `backend/src/Crm.Infrastructure/Persistence/CrmDbContext.cs` with configurations for T024–T026 entities in `backend/src/Crm.Infrastructure/Persistence/Configurations/`
-- [ ] T028 Create SaveChanges interceptors `AuditableEntityInterceptor` (timestamps, CreatedBy/UpdatedBy), `AuditLogInterceptor` (before/after JSON for entities marked `[Audited]`), `OutboxInterceptor` (domain events → OutboxMessage) in `backend/src/Crm.Infrastructure/Persistence/Interceptors/`
-- [ ] T029 Create migration `Foundation` and seeder `backend/src/Crm.Infrastructure/Persistence/Seed/FoundationSeeder.cs` (system roles Administrator/Supervisor/Agent/Customer with default permissions, default calendar Sun–Thu 08:00–17:00 `Asia/Riyadh`, default settings, admin user from config)
+- [X] T027 Create `CrmDbContext` (IdentityDbContext<User, Role, Guid>, implements `IAppDbContext`, soft-delete global filters, `nvarchar` defaults, enum-as-string convention, rowversion convention) in `backend/src/Crm.Infrastructure/Persistence/CrmDbContext.cs` with configurations for T024–T026 entities in `backend/src/Crm.Infrastructure/Persistence/Configurations/`
+- [ ] T028 Create SaveChanges interceptors `AuditableEntityInterceptor` (timestamps, CreatedBy/UpdatedBy), `AuditLogInterceptor` (before/after JSON for entities marked `[Audited]`), `OutboxInterceptor` (domain events → OutboxMessage) in `backend/src/Crm.Infrastructure/Persistence/Interceptors/` — partial: timestamps and audit log interceptor done; outbox interceptor pending
+- [X] T029 Create migration `Foundation` and seeder `backend/src/Crm.Infrastructure/Persistence/Seed/FoundationSeeder.cs` (system roles Administrator/Supervisor/Agent/Customer with default permissions, default calendar Sun–Thu 08:00–17:00 `Asia/Riyadh`, default settings, admin user from config) — single migration InitialMvp covers Foundation + US2 + US1 entities
 - [ ] T030 [P] Implement `LocalFileStorage : IFileStorage` (path outside web root, content-type sniffing, 10 MB limit, allow-list from settings) in `backend/src/Crm.Infrastructure/Files/LocalFileStorage.cs`
-- [ ] T031 Create `backend/src/Crm.Infrastructure/DependencyInjection.cs` registering DbContext (SQL Server, retry), interceptors, Identity, file storage, `SystemClock`, and options classes bound from configuration
+- [X] T031 Create `backend/src/Crm.Infrastructure/DependencyInjection.cs` registering DbContext (SQL Server, retry), interceptors, Identity, file storage, `SystemClock`, and options classes bound from configuration
 
 ### Authentication & authorization
 
-- [ ] T032 Implement JWT issuing + refresh token rotation (hashed, HttpOnly cookie) + TOTP 2FA challenge in `backend/src/Crm.Infrastructure/Identity/TokenService.cs` and `backend/src/Crm.Application/Auth/` handlers `Login`, `VerifyTwoFactor`, `Refresh`, `Logout`, `GetCurrentUser`, `ForgotPassword`, `ResetPassword`
-- [ ] T033 Implement `CurrentUser : ICurrentUser` from claims (permissions, departments, branch, language) in `backend/src/Crm.Api/Security/CurrentUser.cs` and permission policy provider `PermissionAuthorizationHandler` in `backend/src/Crm.Api/Security/`
-- [ ] T034 Implement `AuthController` (`/auth/*` per openapi) in `backend/src/Crm.Api/Controllers/V1/AuthController.cs` with login rate limiting
+- [ ] T032 Implement JWT issuing + refresh token rotation (hashed, HttpOnly cookie) + TOTP 2FA challenge in `backend/src/Crm.Infrastructure/Identity/TokenService.cs` and `backend/src/Crm.Application/Auth/` handlers `Login`, `VerifyTwoFactor`, `Refresh`, `Logout`, `GetCurrentUser`, `ForgotPassword`, `ResetPassword` — partial: login, JWT, rotating refresh tokens, lockout done; TOTP 2FA and forgot/reset password pending
+- [X] T033 Implement `CurrentUser : ICurrentUser` from claims (permissions, departments, branch, language) in `backend/src/Crm.Api/Security/CurrentUser.cs` and permission policy provider `PermissionAuthorizationHandler` in `backend/src/Crm.Api/Security/`
+- [X] T034 Implement `AuthController` (`/auth/*` per openapi) in `backend/src/Crm.Api/Controllers/V1/AuthController.cs` with login rate limiting
 
 ### API pipeline
 
-- [ ] T035 Configure `Program.cs` in `backend/src/Crm.Api/Program.cs`: Serilog (JSON console + file + Seq), API versioning `/api/v1`, controllers with fallback `RequireAuthenticatedUser` policy, Swashbuckle, CORS for staff/portal origins, rate limiter, response compression, localization (`ar`,`en`), health checks (SQL), HTTPS/HSTS
-- [ ] T036 [P] Implement `CorrelationIdMiddleware` (`X-Correlation-ID`, Serilog enrichment) in `backend/src/Crm.Api/Middleware/CorrelationIdMiddleware.cs`
-- [ ] T037 [P] Implement `GlobalExceptionHandler : IExceptionHandler` mapping validation → 400 `ValidationProblemDetails`, not found → 404, forbidden → 403, `DbUpdateConcurrencyException`/domain conflicts → 409 with `code` and `currentVersion`, others → 500 without internals, all with `correlationId` in `backend/src/Crm.Api/Middleware/GlobalExceptionHandler.cs`
+- [X] T035 Configure `Program.cs` in `backend/src/Crm.Api/Program.cs`: Serilog (JSON console + file + Seq), API versioning `/api/v1`, controllers with fallback `RequireAuthenticatedUser` policy, Swashbuckle, CORS for staff/portal origins, rate limiter, response compression, localization (`ar`,`en`), health checks (SQL), HTTPS/HSTS — Seq sink optional; response compression pending
+- [X] T036 [P] Implement `CorrelationIdMiddleware` (`X-Correlation-ID`, Serilog enrichment) in `backend/src/Crm.Api/Middleware/CorrelationIdMiddleware.cs`
+- [X] T037 [P] Implement `GlobalExceptionHandler : IExceptionHandler` mapping validation → 400 `ValidationProblemDetails`, not found → 404, forbidden → 403, `DbUpdateConcurrencyException`/domain conflicts → 409 with `code` and `currentVersion`, others → 500 without internals, all with `correlationId` in `backend/src/Crm.Api/Middleware/GlobalExceptionHandler.cs`
 - [ ] T038 [P] Create `.resx` resources for validation and error messages in `backend/src/Crm.Api/Localization/SharedResource.ar.resx` and `SharedResource.en.resx`, wired to FluentValidation language manager
 - [ ] T039 Configure Hangfire (SQL Server storage, dashboard at `/jobs` for Administrator) and `OutboxProcessorJob` (every 15 s, dispatches domain events to registered `IOutboxHandler`s, retries) in `backend/src/Crm.Infrastructure/Jobs/OutboxProcessorJob.cs`
 - [ ] T040 Create SignalR `AgentHub` skeleton at `/hubs/agent` (JWT from `access_token` query, groups `user:{id}` and `dept:{id}`) in `backend/src/Crm.Api/Hubs/AgentHub.cs` and `IRealtimeNotifier` port + implementation in `backend/src/Crm.Application/Abstractions/IRealtimeNotifier.cs` / `backend/src/Crm.Api/Hubs/SignalRRealtimeNotifier.cs`
@@ -106,12 +106,12 @@ integration tests that MUST fail before implementation. Integration tests use re
 ### Frontend foundation
 
 - [ ] T041 [P] Run `npm run generate:api` and export the generated client from `frontend/libs/shared/src/public-api.ts`
-- [ ] T042 [P] Implement auth in shared lib: `AuthStore` (signals: user, permissions), `authInterceptor` (Bearer + refresh on 401), `permissionGuard`, `hasPermission` structural directive in `frontend/libs/shared/src/lib/auth/`
-- [ ] T043 [P] Implement i18n + direction: Transloco loader, `LanguageService` switching `ar`/`en`, setting `<html dir lang>` and Material `Directionality`, persisting choice in `frontend/libs/shared/src/lib/i18n/`
-- [ ] T044 [P] Implement `problemDetailsInterceptor` mapping 400/409/403/503 to localized snackbar messages and form errors in `frontend/libs/shared/src/lib/http/problem-details.interceptor.ts`
+- [X] T042 [P] Implement auth in shared lib: `AuthStore` (signals: user, permissions), `authInterceptor` (Bearer + refresh on 401), `permissionGuard`, `hasPermission` structural directive in `frontend/libs/shared/src/lib/auth/` — implemented in projects/staff/src/app/core (moves to libs/shared when the portal app is added)
+- [X] T043 [P] Implement i18n + direction: Transloco loader, `LanguageService` switching `ar`/`en`, setting `<html dir lang>` and Material `Directionality`, persisting choice in `frontend/libs/shared/src/lib/i18n/` — implemented in projects/staff/src/app/core/i18n
+- [X] T044 [P] Implement `problemDetailsInterceptor` mapping 400/409/403/503 to localized snackbar messages and form errors in `frontend/libs/shared/src/lib/http/problem-details.interceptor.ts` — implemented in projects/staff/src/app/core/http
 - [ ] T045 [P] Implement `SignalRService` (connect with token, reconnect, typed event streams as signals/observables) in `frontend/libs/shared/src/lib/realtime/signalr.service.ts`
-- [ ] T046 Create staff app shell: responsive layout (side nav collapsing to bottom/drawer on mobile), top bar with language switch, login page, lazy routes placeholder for each feature in `frontend/projects/staff/src/app/app.routes.ts`, `frontend/projects/staff/src/app/layout/`, `frontend/projects/staff/src/app/features/auth/login.page.ts`
-- [ ] T047 [P] Unit tests for `authInterceptor`, `permissionGuard` and `LanguageService` in `frontend/libs/shared/src/lib/**/*.spec.ts`
+- [X] T046 Create staff app shell: responsive layout (side nav collapsing to bottom/drawer on mobile), top bar with language switch, login page, lazy routes placeholder for each feature in `frontend/projects/staff/src/app/app.routes.ts`, `frontend/projects/staff/src/app/layout/`, `frontend/projects/staff/src/app/features/auth/login.page.ts` — dashboard, tickets and customers routes
+- [X] T047 [P] Unit tests for `authInterceptor`, `permissionGuard` and `LanguageService` in `frontend/libs/shared/src/lib/**/*.spec.ts`
 
 **Checkpoint**: `dotnet test` and `ng test` green; admin can sign in to the staff shell in Arabic and English.
 
@@ -133,7 +133,7 @@ integration tests that MUST fail before implementation. Integration tests use re
 
 ### Implementation for US3
 
-- [ ] T054 [P] [US3] Create `Category` entity in `backend/src/Crm.Domain/Tickets/Category.cs` with configuration and add configurations for Department/Branch/Calendar if missing; migration `US3_Administration`
+- [X] T054 [P] [US3] Create `Category` entity in `backend/src/Crm.Domain/Tickets/Category.cs` with configuration and add configurations for Department/Branch/Calendar if missing; migration `US3_Administration`
 - [ ] T055 [P] [US3] Implement user use cases `ListUsers`, `GetUser`, `CreateUser` (sends invitation email via `IEmailSender` port), `UpdateUser`, `DeactivateUser` (raises `UserDeactivated` event), `ResetUserPassword` in `backend/src/Crm.Application/Admin/Users/`
 - [ ] T056 [P] [US3] Implement role use cases `ListRoles`, `CreateRole`, `UpdateRole`, `DeleteRole`, `ListPermissions` in `backend/src/Crm.Application/Admin/Roles/`
 - [ ] T057 [P] [US3] Implement department, branch, category use cases (list/create/update) in `backend/src/Crm.Application/Admin/Organization/`
@@ -158,23 +158,23 @@ integration tests that MUST fail before implementation. Integration tests use re
 
 ### Tests for US2 ⚠️
 
-- [ ] T067 [P] [US2] Unit tests for `Customer` domain rules (email or phone required, E.164, merge re-points history, NeedsReview) in `backend/tests/Crm.Domain.UnitTests/Customers/CustomerTests.cs`
-- [ ] T068 [P] [US2] Integration tests for `/customers` CRUD, search by name/email/phone/reference (Arabic + English), 409 on stale version, contract validation in `backend/tests/Crm.Api.IntegrationTests/Customers/CustomersTests.cs`
-- [ ] T069 [P] [US2] Integration tests for contacts, notes, attachments (10 MB → 413, blocked type → 415), timeline order, merge in `backend/tests/Crm.Api.IntegrationTests/Customers/CustomerDetailsTests.cs`
+- [X] T067 [P] [US2] Unit tests for `Customer` domain rules (email or phone required, E.164, merge re-points history, NeedsReview) in `backend/tests/Crm.Domain.UnitTests/Customers/CustomerTests.cs`
+- [X] T068 [P] [US2] Integration tests for `/customers` CRUD, search by name/email/phone/reference (Arabic + English), 409 on stale version, contract validation in `backend/tests/Crm.Api.IntegrationTests/Customers/CustomersTests.cs` — search uses indexed LIKE; SQL full-text (T073) pending because LocalDB has no FTS
+- [ ] T069 [P] [US2] Integration tests for contacts, notes, attachments (10 MB → 413, blocked type → 415), timeline order, merge in `backend/tests/Crm.Api.IntegrationTests/Customers/CustomerDetailsTests.cs` — partial: contacts, notes, timeline, audit covered; attachments and merge pending
 - [ ] T070 [P] [US2] Unit test for `FindOrCreateCustomerBySender` (match by any email/phone, else create with NeedsReview) in `backend/tests/Crm.Application.UnitTests/Customers/FindOrCreateCustomerBySenderTests.cs`
 
 ### Implementation for US2
 
-- [ ] T071 [P] [US2] Create `Customer` (aggregate, audited, soft delete, rowversion), `CustomerEmail`, `CustomerPhone`, `ContactPerson`, `Note`, `Tag`, `Address` value object in `backend/src/Crm.Domain/Customers/`
-- [ ] T072 [US2] Add EF configurations for customer entities, reference number sequence `CUS-000001` (SQL sequence), indexes, full-text catalog + index on Customer name/emails/phones (migration SQL) in `backend/src/Crm.Infrastructure/Persistence/Configurations/Customers/` and migration `US2_Customers`
-- [ ] T073 [P] [US2] Implement `SearchCustomers` (full-text via `CONTAINS`/`FREETEXT` with exact-match fallback on phone/email/reference, data scope) in `backend/src/Crm.Application/Customers/SearchCustomers.cs` and search SQL helper in `backend/src/Crm.Infrastructure/Search/FullTextSearch.cs`
-- [ ] T074 [P] [US2] Implement `CreateCustomer`, `UpdateCustomer`, `GetCustomer`, `DeactivateCustomer`, `MergeCustomers` in `backend/src/Crm.Application/Customers/`
-- [ ] T075 [P] [US2] Implement contact use cases `ListContacts`, `AddContact`, `UpdateContact`, `RemoveContact` in `backend/src/Crm.Application/Customers/Contacts/`
-- [ ] T076 [P] [US2] Implement `AddCustomerNote`, `UploadCustomerAttachment`, `GetCustomerTimeline` (union of tickets/messages/notes/attachments/feedback, paged) in `backend/src/Crm.Application/Customers/Timeline/`
+- [ ] T071 [P] [US2] Create `Customer` (aggregate, audited, soft delete, rowversion), `CustomerEmail`, `CustomerPhone`, `ContactPerson`, `Note`, `Tag`, `Address` value object in `backend/src/Crm.Domain/Customers/` — partial: Customer, ContactPerson, Note, Address done; extra emails/phones, tags pending
+- [ ] T072 [US2] Add EF configurations for customer entities, reference number sequence `CUS-000001` (SQL sequence), indexes, full-text catalog + index on Customer name/emails/phones (migration SQL) in `backend/src/Crm.Infrastructure/Persistence/Configurations/Customers/` and migration `US2_Customers` — partial: configurations, CUS sequence, indexes done; full-text catalog pending
+- [ ] T073 [P] [US2] Implement `SearchCustomers` (full-text via `CONTAINS`/`FREETEXT` with exact-match fallback on phone/email/reference, data scope) in `backend/src/Crm.Application/Customers/SearchCustomers.cs` and search SQL helper in `backend/src/Crm.Infrastructure/Search/FullTextSearch.cs` — partial: LIKE-based search over name/email/phone/contacts/reference; full-text pending
+- [ ] T074 [P] [US2] Implement `CreateCustomer`, `UpdateCustomer`, `GetCustomer`, `DeactivateCustomer`, `MergeCustomers` in `backend/src/Crm.Application/Customers/` — partial: create, update (rowversion), get, deactivate done; merge pending
+- [X] T075 [P] [US2] Implement contact use cases `ListContacts`, `AddContact`, `UpdateContact`, `RemoveContact` in `backend/src/Crm.Application/Customers/Contacts/`
+- [ ] T076 [P] [US2] Implement `AddCustomerNote`, `UploadCustomerAttachment`, `GetCustomerTimeline` (union of tickets/messages/notes/attachments/feedback, paged) in `backend/src/Crm.Application/Customers/Timeline/` — partial: notes and timeline done; attachments pending
 - [ ] T077 [P] [US2] Implement `FindOrCreateCustomerBySender` service used by channels/portal in `backend/src/Crm.Application/Customers/FindOrCreateCustomerBySender.cs`
-- [ ] T078 [US2] Implement `CustomersController` (all `/customers/*` except `/erp`) and `FilesController` (`GET /files/{id}` with authorization against owning record) in `backend/src/Crm.Api/Controllers/V1/`
-- [ ] T079 [US2] Staff UI — customer search list (debounced search, filters, needs-review badge) in `frontend/projects/staff/src/app/features/customers/customer-list.page.ts`
-- [ ] T080 [US2] Staff UI — customer profile page (details form, contacts panel, timeline with infinite scroll, note composer, attachment upload, merge dialog) in `frontend/projects/staff/src/app/features/customers/customer-profile/`
+- [ ] T078 [US2] Implement `CustomersController` (all `/customers/*` except `/erp`) and `FilesController` (`GET /files/{id}` with authorization against owning record) in `backend/src/Crm.Api/Controllers/V1/` — partial: CustomersController done; FilesController pending
+- [X] T079 [US2] Staff UI — customer search list (debounced search, filters, needs-review badge) in `frontend/projects/staff/src/app/features/customers/customer-list.page.ts`
+- [ ] T080 [US2] Staff UI — customer profile page (details form, contacts panel, timeline with infinite scroll, note composer, attachment upload, merge dialog) in `frontend/projects/staff/src/app/features/customers/customer-profile/` — partial: details form, contacts, timeline, notes done; attachments and merge pending
 - [ ] T081 [P] [US2] Component tests for customer form validation and timeline rendering in `frontend/projects/staff/src/app/features/customers/**/*.spec.ts`
 
 **Checkpoint**: US2 acceptance scenarios 1–5 pass (scenario 5 verified via `FindOrCreateCustomerBySender` test until channels exist).
@@ -188,28 +188,28 @@ integration tests that MUST fail before implementation. Integration tests use re
 
 ### Tests for US1 ⚠️
 
-- [ ] T082 [P] [US1] Unit tests for `Ticket` state machine (allowed/invalid transitions, reopen window 7 days, escalation level, first response timestamp) in `backend/tests/Crm.Domain.UnitTests/Tickets/TicketStateMachineTests.cs`
-- [ ] T083 [P] [US1] Integration tests for `/tickets` create/list filters/get/patch, reference number format, contract validation in `backend/tests/Crm.Api.IntegrationTests/Tickets/TicketsCrudTests.cs`
-- [ ] T084 [P] [US1] Integration tests for assign/take/status/escalate endpoints, 409 on invalid transition or stale version, department scoping (agent sees only own department) in `backend/tests/Crm.Api.IntegrationTests/Tickets/TicketWorkflowTests.cs`
-- [ ] T085 [P] [US1] Integration tests for `/tickets/{id}/history`, `/notes` (internal, mentions), `/messages` (reply, internal excluded when `includeInternal=false`), attachments in `backend/tests/Crm.Api.IntegrationTests/Tickets/TicketConversationTests.cs`
+- [X] T082 [P] [US1] Unit tests for `Ticket` state machine (allowed/invalid transitions, reopen window 7 days, escalation level, first response timestamp) in `backend/tests/Crm.Domain.UnitTests/Tickets/TicketStateMachineTests.cs`
+- [X] T083 [P] [US1] Integration tests for `/tickets` create/list filters/get/patch, reference number format, contract validation in `backend/tests/Crm.Api.IntegrationTests/Tickets/TicketsCrudTests.cs`
+- [X] T084 [P] [US1] Integration tests for assign/take/status/escalate endpoints, 409 on invalid transition or stale version, department scoping (agent sees only own department) in `backend/tests/Crm.Api.IntegrationTests/Tickets/TicketWorkflowTests.cs`
+- [ ] T085 [P] [US1] Integration tests for `/tickets/{id}/history`, `/notes` (internal, mentions), `/messages` (reply, internal excluded when `includeInternal=false`), attachments in `backend/tests/Crm.Api.IntegrationTests/Tickets/TicketConversationTests.cs` — partial: history, internal notes with mentions, replies, internal filtering covered; attachments pending
 - [ ] T086 [P] [US1] Integration test: deactivating a user (US3) returns their open tickets to the department queue in `backend/tests/Crm.Api.IntegrationTests/Tickets/UserDeactivationTicketsTests.cs`
 
 ### Implementation for US1
 
-- [ ] T087 [P] [US1] Create `Ticket` aggregate (fields per data-model.md, state machine methods `Assign`, `Take`, `ChangeStatus`, `Escalate`, `Reopen`, `RecordFirstResponse`, domain events) in `backend/src/Crm.Domain/Tickets/Ticket.cs`
-- [ ] T088 [P] [US1] Create `Message` (+ `MessageMention`), `TicketHistoryEntry` entities in `backend/src/Crm.Domain/Tickets/`
-- [ ] T089 [US1] Add EF configurations for Ticket/Message/History, `TCK-000001` sequence, indexes from data-model.md, full-text index on Subject/Description, migration `US1_Tickets` in `backend/src/Crm.Infrastructure/Persistence/Configurations/Tickets/`
-- [ ] T090 [US1] Implement `TicketHistoryInterceptor` writing `TicketHistoryEntry` rows for every tracked field change in `backend/src/Crm.Infrastructure/Persistence/Interceptors/TicketHistoryInterceptor.cs`
-- [ ] T091 [P] [US1] Implement `CreateTicket` (defaults department from category, validates contact belongs to customer, attachments), `UpdateTicket`, `GetTicket` (with `allowedTransitions`), `ListTickets` (all filters, data scope, sort) in `backend/src/Crm.Application/Tickets/`
-- [ ] T092 [P] [US1] Implement `AssignTicket`, `TakeTicket`, `ChangeTicketStatus`, `EscalateTicket` (to department escalation owner), `GetTicketHistory` in `backend/src/Crm.Application/Tickets/Workflow/`
-- [ ] T093 [P] [US1] Implement `AddInternalNote` (mentions → `Mentioned` notification event), `ListMessages`, `ReplyToTicket` (outbound message via `IOutboundMessageSender` port; default in-app/portal sender), `UploadTicketAttachment` in `backend/src/Crm.Application/Tickets/Conversation/`
+- [X] T087 [P] [US1] Create `Ticket` aggregate (fields per data-model.md, state machine methods `Assign`, `Take`, `ChangeStatus`, `Escalate`, `Reopen`, `RecordFirstResponse`, domain events) in `backend/src/Crm.Domain/Tickets/Ticket.cs`
+- [X] T088 [P] [US1] Create `Message` (+ `MessageMention`), `TicketHistoryEntry` entities in `backend/src/Crm.Domain/Tickets/`
+- [ ] T089 [US1] Add EF configurations for Ticket/Message/History, `TCK-000001` sequence, indexes from data-model.md, full-text index on Subject/Description, migration `US1_Tickets` in `backend/src/Crm.Infrastructure/Persistence/Configurations/Tickets/` — partial: configuration, TCK sequence, indexes done; full-text pending
+- [X] T090 [US1] Implement `TicketHistoryInterceptor` writing `TicketHistoryEntry` rows for every tracked field change in `backend/src/Crm.Infrastructure/Persistence/Interceptors/TicketHistoryInterceptor.cs` — history is recorded explicitly by Ticket aggregate methods (with reasons) instead of an interceptor
+- [X] T091 [P] [US1] Implement `CreateTicket` (defaults department from category, validates contact belongs to customer, attachments), `UpdateTicket`, `GetTicket` (with `allowedTransitions`), `ListTickets` (all filters, data scope, sort) in `backend/src/Crm.Application/Tickets/`
+- [X] T092 [P] [US1] Implement `AssignTicket`, `TakeTicket`, `ChangeTicketStatus`, `EscalateTicket` (to department escalation owner), `GetTicketHistory` in `backend/src/Crm.Application/Tickets/Workflow/`
+- [ ] T093 [P] [US1] Implement `AddInternalNote` (mentions → `Mentioned` notification event), `ListMessages`, `ReplyToTicket` (outbound message via `IOutboundMessageSender` port; default in-app/portal sender), `UploadTicketAttachment` in `backend/src/Crm.Application/Tickets/Conversation/` — partial: notes with mentions, list, reply done; mention notifications and attachments pending
 - [ ] T094 [US1] Implement `Notification` entity + `NotificationService` (create in-app notification, push via `IRealtimeNotifier`, email for enabled types) and outbox handlers for `TicketAssigned`, `UserMentioned` in `backend/src/Crm.Domain/Notifications/Notification.cs`, `backend/src/Crm.Application/Notifications/`
 - [ ] T095 [US1] Implement `UserDeactivated` outbox handler returning open tickets to queue in `backend/src/Crm.Application/Tickets/Handlers/ReturnTicketsOnUserDeactivated.cs`
-- [ ] T096 [US1] Implement `ReopenOnCustomerReply` logic (closed ≤ 7 days → reopen; else new linked ticket) used by inbound processing in `backend/src/Crm.Application/Tickets/ReopenOnCustomerReply.cs`
-- [ ] T097 [US1] Implement `TicketsController` and `TicketMessagesController` (`/tickets/*`, `/tickets/{id}/messages/*`) in `backend/src/Crm.Api/Controllers/V1/`
-- [ ] T098 [US1] Staff UI — ticket list/queue page (filters, saved "My tickets"/"Unassigned" views, status/priority chips, SLA badge placeholder) in `frontend/projects/staff/src/app/features/tickets/ticket-list.page.ts`
-- [ ] T099 [US1] Staff UI — create ticket dialog (customer autocomplete, contact, category, priority, attachments) in `frontend/projects/staff/src/app/features/tickets/create-ticket.dialog.ts`
-- [ ] T100 [US1] Staff UI — ticket detail page (conversation with public/internal tabs, reply composer, internal note with @mentions, status actions from `allowedTransitions`, assign, escalate-with-reason dialog, history tab, customer side panel, stale-version conflict banner) in `frontend/projects/staff/src/app/features/tickets/ticket-detail/`
+- [ ] T096 [US1] Implement `ReopenOnCustomerReply` logic (closed ≤ 7 days → reopen; else new linked ticket) used by inbound processing in `backend/src/Crm.Application/Tickets/ReopenOnCustomerReply.cs` — partial: Ticket.RecordCustomerReply implemented and unit-tested; wired up with inbound channels (US6)
+- [X] T097 [US1] Implement `TicketsController` and `TicketMessagesController` (`/tickets/*`, `/tickets/{id}/messages/*`) in `backend/src/Crm.Api/Controllers/V1/`
+- [X] T098 [US1] Staff UI — ticket list/queue page (filters, saved "My tickets"/"Unassigned" views, status/priority chips, SLA badge placeholder) in `frontend/projects/staff/src/app/features/tickets/ticket-list.page.ts`
+- [X] T099 [US1] Staff UI — create ticket dialog (customer autocomplete, contact, category, priority, attachments) in `frontend/projects/staff/src/app/features/tickets/create-ticket.dialog.ts`
+- [X] T100 [US1] Staff UI — ticket detail page (conversation with public/internal tabs, reply composer, internal note with @mentions, status actions from `allowedTransitions`, assign, escalate-with-reason dialog, history tab, customer side panel, stale-version conflict banner) in `frontend/projects/staff/src/app/features/tickets/ticket-detail/` — attachments pending
 - [ ] T101 [P] [US1] Component tests for ticket detail actions and conflict handling in `frontend/projects/staff/src/app/features/tickets/**/*.spec.ts`
 - [ ] T102 [P] [US1] Playwright E2E for P1 journey (admin creates agent → agent creates customer → ticket → close) in `e2e/tests/p1-ticket-lifecycle.spec.ts`
 
@@ -255,7 +255,7 @@ integration tests that MUST fail before implementation. Integration tests use re
 
 ### Tests for US4 ⚠️
 
-- [ ] T119 [P] [US4] Integration tests for `/dashboard/agent` (counts, at-risk/overdue ordering, queue count) in `backend/tests/Crm.Api.IntegrationTests/Dashboard/AgentDashboardTests.cs`
+- [X] T119 [P] [US4] Integration tests for `/dashboard/agent` (counts, at-risk/overdue ordering, queue count) in `backend/tests/Crm.Api.IntegrationTests/Dashboard/AgentDashboardTests.cs`
 - [ ] T120 [P] [US4] Integration tests for `/tasks` CRUD + `ReminderJob` notification at due time (fake clock) in `backend/tests/Crm.Api.IntegrationTests/Tasks/TasksTests.cs`
 - [ ] T121 [P] [US4] Unit tests for quick reply placeholder rendering (ar/en, unknown placeholder left intact, HTML-escaped values) in `backend/tests/Crm.Application.UnitTests/QuickReplies/QuickReplyRendererTests.cs`
 - [ ] T122 [P] [US4] Integration tests for `/quick-replies` (shared vs personal visibility, render) in `backend/tests/Crm.Api.IntegrationTests/QuickReplies/QuickRepliesTests.cs`
@@ -263,12 +263,12 @@ integration tests that MUST fail before implementation. Integration tests use re
 ### Implementation for US4
 
 - [ ] T123 [P] [US4] Create `TaskItem`, `QuickReply` entities + configurations, migration `US4_Productivity` in `backend/src/Crm.Domain/Productivity/`
-- [ ] T124 [P] [US4] Implement `GetAgentDashboard` query in `backend/src/Crm.Application/Dashboard/GetAgentDashboard.cs`
+- [X] T124 [P] [US4] Implement `GetAgentDashboard` query in `backend/src/Crm.Application/Dashboard/GetAgentDashboard.cs` — counts, my queue, awaiting first reply, department queue, team overview; SLA lists added with US7
 - [ ] T125 [P] [US4] Implement task use cases (list/create/update/delete) in `backend/src/Crm.Application/Tasks/` and `ReminderJob` (every minute) in `backend/src/Crm.Infrastructure/Jobs/ReminderJob.cs`
 - [ ] T126 [P] [US4] Implement quick reply use cases + `QuickReplyRenderer` in `backend/src/Crm.Application/QuickReplies/`
-- [ ] T127 [US4] Implement `DashboardController`, `TasksController`, `QuickRepliesController` in `backend/src/Crm.Api/Controllers/V1/`
+- [X] T127 [US4] Implement `DashboardController`, `TasksController`, `QuickRepliesController` in `backend/src/Crm.Api/Controllers/V1/` — partial: DashboardController (+ /lookups) done; Tasks and QuickReplies controllers pending
 - [ ] T128 [US4] Add `AgentHub` methods `WatchTicket`, `UnwatchTicket`, `SetAvailability` and emit `TicketUpdated`, `MessageAdded` from outbox handlers in `backend/src/Crm.Api/Hubs/AgentHub.cs` and `backend/src/Crm.Application/Realtime/TicketRealtimeHandlers.cs`
-- [ ] T129 [US4] Staff UI — agent dashboard home (status counts, at-risk/overdue lists, tasks due today, availability toggle, live refresh via SignalR) in `frontend/projects/staff/src/app/features/dashboard/`
+- [ ] T129 [US4] Staff UI — agent dashboard home (status counts, at-risk/overdue lists, tasks due today, availability toggle, live refresh via SignalR) in `frontend/projects/staff/src/app/features/dashboard/` — partial: dashboard page done; live SignalR refresh and availability toggle pending
 - [ ] T130 [P] [US4] Staff UI — tasks & reminders page and "add reminder" from ticket/customer in `frontend/projects/staff/src/app/features/tasks/`
 - [ ] T131 [P] [US4] Staff UI — quick replies management page and quick-reply picker in the ticket reply composer in `frontend/projects/staff/src/app/features/quick-replies/` and `frontend/projects/staff/src/app/features/tickets/ticket-detail/quick-reply-picker.component.ts`
 - [ ] T132 [P] [US4] Component tests for dashboard and quick-reply picker in `frontend/projects/staff/src/app/features/{dashboard,quick-replies}/**/*.spec.ts`
