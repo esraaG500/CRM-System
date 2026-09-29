@@ -1,0 +1,1944 @@
+openapi: 3.1.0
+info:
+  title: Customer Support CRM API
+  version: 1.0.0
+  description: |
+    REST contract for the Customer Support CRM (feature 001-support-crm-mvp).
+    - Base path: /api/v1
+    - Auth: Bearer JWT (staff & portal users) or `X-Api-Key` (integrations).
+    - Errors: RFC 7807 Problem Details (`application/problem+json`) with `correlationId`
+      and, for validation, an `errors` map.
+    - Lists: `page` (1-based), `pageSize` (default 25, max 100) → `PagedResult`.
+    - Concurrency: mutable resources return `version` (base64 rowversion); send it back on
+      PUT/PATCH; stale version → 409.
+    - Localization: `Accept-Language: ar|en` for messages; bilingual fields are `nameEn`/`nameAr`.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+  - apiKey: []
+
+tags:
+  - name: Auth
+  - name: Customers
+  - name: Tickets
+  - name: Messages
+  - name: Channels
+  - name: Dashboard
+  - name: Tasks
+  - name: QuickReplies
+  - name: Notifications
+  - name: Sla
+  - name: Knowledge
+  - name: Ai
+  - name: Portal
+  - name: Public
+  - name: Reports
+  - name: Admin
+  - name: Integrations
+  - name: Files
+
+paths:
+  # ---------------------------------------------------------------- Auth
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Sign in (staff or portal customer)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200': { description: Signed in, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResult' } } } }
+        '202': { description: Two-factor code required, content: { application/json: { schema: { $ref: '#/components/schemas/TwoFactorChallenge' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /auth/2fa/verify:
+    post:
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challengeId, code]
+              properties:
+                challengeId: { type: string }
+                code: { type: string, pattern: '^[0-9]{6}$' }
+      responses:
+        '200': { description: Signed in, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResult' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Rotate refresh token (HttpOnly cookie) and get a new access token
+      responses:
+        '200': { description: Refreshed, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResult' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      responses:
+        '204': { description: Signed out }
+  /auth/me:
+    get:
+      tags: [Auth]
+      responses:
+        '200': { description: Current user, content: { application/json: { schema: { $ref: '#/components/schemas/CurrentUser' } } } }
+  /auth/password/forgot:
+    post:
+      tags: [Auth]
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [email], properties: { email: { type: string, format: email } } }
+      responses:
+        '202': { description: Reset email sent if account exists }
+  /auth/password/reset:
+    post:
+      tags: [Auth]
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, email, newPassword]
+              properties:
+                token: { type: string }
+                email: { type: string, format: email }
+                newPassword: { type: string, minLength: 10 }
+      responses:
+        '204': { description: Password changed }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  # ---------------------------------------------------------------- Customers (US2)
+  /customers:
+    get:
+      tags: [Customers]
+      summary: Search customers (name, email, phone, reference)
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/CustomerType' } }
+        - { name: branchId, in: query, schema: { type: string, format: uuid } }
+        - { name: needsReview, in: query, schema: { type: boolean } }
+        - { name: tag, in: query, schema: { type: string } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { description: Page of customers, content: { application/json: { schema: { $ref: '#/components/schemas/CustomerSummaryPage' } } } }
+    post:
+      tags: [Customers]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CustomerUpsert' } } }
+      responses:
+        '201': { description: Created, headers: { Location: { schema: { type: string } } }, content: { application/json: { schema: { $ref: '#/components/schemas/Customer' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /customers/{customerId}:
+    parameters: [ { $ref: '#/components/parameters/CustomerId' } ]
+    get:
+      tags: [Customers]
+      responses:
+        '200': { description: Customer, content: { application/json: { schema: { $ref: '#/components/schemas/Customer' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Customers]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CustomerUpsert' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Customer' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Customers]
+      summary: Deactivate (soft delete) customer
+      responses:
+        '204': { description: Deactivated }
+  /customers/{customerId}/contacts:
+    parameters: [ { $ref: '#/components/parameters/CustomerId' } ]
+    get:
+      tags: [Customers]
+      responses:
+        '200': { description: Contacts, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ContactPerson' } } } } }
+    post:
+      tags: [Customers]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/ContactPersonUpsert' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ContactPerson' } } } }
+  /customers/{customerId}/contacts/{contactId}:
+    parameters:
+      - { $ref: '#/components/parameters/CustomerId' }
+      - { name: contactId, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      tags: [Customers]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/ContactPersonUpsert' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/ContactPerson' } } } }
+    delete:
+      tags: [Customers]
+      responses:
+        '204': { description: Removed }
+  /customers/{customerId}/timeline:
+    parameters: [ { $ref: '#/components/parameters/CustomerId' } ]
+    get:
+      tags: [Customers]
+      summary: Interaction history (tickets, messages, notes, attachments, feedback)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { description: Timeline, content: { application/json: { schema: { $ref: '#/components/schemas/TimelinePage' } } } }
+  /customers/{customerId}/notes:
+    parameters: [ { $ref: '#/components/parameters/CustomerId' } ]
+    post:
+      tags: [Customers]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/NoteCreate' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Note' } } } }
+  /customers/{customerId}/attachments:
+    parameters: [ { $ref: '#/components/parameters/CustomerId' } ]
+    post:
+      tags: [Customers, Files]
+      requestBody:
+        content:
+          multipart/form-data:
+            schema: { type: object, required: [file], properties: { file: { type: string, format: binary } } }
+      responses:
+        '201': { description: Uploaded, content: { application/json: { schema: { $ref: '#/components/schemas/AttachmentInfo' } } } }
+        '413': { description: File too large (> 10 MB), content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } } }
+        '415': { description: File type not allowed, content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } } }
+  /customers/{customerId}/merge:
+    parameters: [ { $ref: '#/components/parameters/CustomerId' } ]
+    post:
+      tags: [Customers]
+      summary: Merge a duplicate customer into this one (keeps all history)
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [duplicateCustomerId], properties: { duplicateCustomerId: { type: string, format: uuid } } }
+      responses:
+        '200': { description: Merged, content: { application/json: { schema: { $ref: '#/components/schemas/Customer' } } } }
+  /customers/{customerId}/erp:
+    parameters: [ { $ref: '#/components/parameters/CustomerId' } ]
+    get:
+      tags: [Customers, Integrations]
+      summary: Read-only ERP information for linked customer
+      responses:
+        '200': { description: ERP data, content: { application/json: { schema: { $ref: '#/components/schemas/ErpCustomerInfo' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { description: ERP unavailable, content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } } }
+
+  # ---------------------------------------------------------------- Tickets (US1)
+  /tickets:
+    get:
+      tags: [Tickets]
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: array, items: { $ref: '#/components/schemas/TicketStatus' } }, style: form, explode: true }
+        - { name: priority, in: query, schema: { type: array, items: { $ref: '#/components/schemas/TicketPriority' } }, style: form, explode: true }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: departmentId, in: query, schema: { type: string, format: uuid } }
+        - { name: branchId, in: query, schema: { type: string, format: uuid } }
+        - { name: assigneeId, in: query, description: "Use 'me' or 'unassigned' or a user id", schema: { type: string } }
+        - { name: customerId, in: query, schema: { type: string, format: uuid } }
+        - { name: channel, in: query, schema: { $ref: '#/components/schemas/Channel' } }
+        - { name: slaState, in: query, schema: { type: string, enum: [onTrack, atRisk, breached] } }
+        - { name: createdFrom, in: query, schema: { type: string, format: date } }
+        - { name: createdTo, in: query, schema: { type: string, format: date } }
+        - { name: sort, in: query, schema: { type: string, enum: [createdAt, -createdAt, priority, dueAt], default: -createdAt } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { description: Page of tickets, content: { application/json: { schema: { $ref: '#/components/schemas/TicketSummaryPage' } } } }
+    post:
+      tags: [Tickets]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/TicketCreate' } } }
+      responses:
+        '201': { description: Created, headers: { Location: { schema: { type: string } } }, content: { application/json: { schema: { $ref: '#/components/schemas/Ticket' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /tickets/{ticketId}:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    get:
+      tags: [Tickets]
+      responses:
+        '200': { description: Ticket, content: { application/json: { schema: { $ref: '#/components/schemas/Ticket' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Tickets]
+      summary: Update subject, category, priority, department
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/TicketUpdate' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Ticket' } } } }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tickets/{ticketId}/assign:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    post:
+      tags: [Tickets]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                assigneeId: { type: [string, 'null'], format: uuid, description: null = return to queue }
+                departmentId: { type: string, format: uuid }
+                version: { type: string }
+      responses:
+        '200': { description: Assigned, content: { application/json: { schema: { $ref: '#/components/schemas/Ticket' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tickets/{ticketId}/take:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    post:
+      tags: [Tickets]
+      summary: Agent takes an unassigned ticket from their department queue
+      responses:
+        '200': { description: Taken, content: { application/json: { schema: { $ref: '#/components/schemas/Ticket' } } } }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tickets/{ticketId}/status:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    post:
+      tags: [Tickets]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, version]
+              properties:
+                status: { $ref: '#/components/schemas/TicketStatus' }
+                reason: { type: string, maxLength: 500 }
+                version: { type: string }
+      responses:
+        '200': { description: Status changed, content: { application/json: { schema: { $ref: '#/components/schemas/Ticket' } } } }
+        '409': { description: Invalid transition or stale version, content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } } }
+  /tickets/{ticketId}/escalate:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    post:
+      tags: [Tickets]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, version]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 500 }
+                version: { type: string }
+      responses:
+        '200': { description: Escalated, content: { application/json: { schema: { $ref: '#/components/schemas/Ticket' } } } }
+  /tickets/{ticketId}/history:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    get:
+      tags: [Tickets]
+      responses:
+        '200': { description: History, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TicketHistoryEntry' } } } } }
+  /tickets/{ticketId}/notes:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    post:
+      tags: [Tickets]
+      summary: Internal note with optional mentions (never visible to customers)
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/InternalNoteCreate' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
+  /tickets/{ticketId}/attachments:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    post:
+      tags: [Tickets, Files]
+      requestBody:
+        content:
+          multipart/form-data:
+            schema: { type: object, required: [file], properties: { file: { type: string, format: binary } } }
+      responses:
+        '201': { description: Uploaded, content: { application/json: { schema: { $ref: '#/components/schemas/AttachmentInfo' } } } }
+        '413': { description: Too large }
+        '415': { description: Type not allowed }
+
+  # ---------------------------------------------------------------- Messages / channels (US6)
+  /tickets/{ticketId}/messages:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    get:
+      tags: [Messages]
+      parameters:
+        - { name: includeInternal, in: query, schema: { type: boolean, default: true } }
+      responses:
+        '200': { description: Conversation, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Message' } } } } }
+    post:
+      tags: [Messages]
+      summary: Reply to customer (sent on ticket channel unless overridden)
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/ReplyCreate' } } }
+      responses:
+        '202': { description: Queued for delivery, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
+  /tickets/{ticketId}/messages/{messageId}/retry:
+    parameters:
+      - { $ref: '#/components/parameters/TicketId' }
+      - { name: messageId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Messages]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { channel: { $ref: '#/components/schemas/Channel' } } }
+      responses:
+        '202': { description: Re-queued, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
+  /channels/whatsapp/webhook:
+    get:
+      tags: [Channels]
+      security: []
+      summary: Meta webhook verification (hub.challenge)
+      responses:
+        '200': { description: Challenge echoed }
+    post:
+      tags: [Channels]
+      security: []
+      summary: Inbound WhatsApp messages and delivery statuses (signature verified)
+      responses:
+        '200': { description: Accepted }
+        '401': { description: Invalid signature }
+  /channels/sms/webhook:
+    post:
+      tags: [Channels]
+      security: []
+      summary: Inbound SMS and delivery reports from SMS provider (signature/token verified)
+      responses:
+        '200': { description: Accepted }
+        '401': { description: Invalid signature }
+
+  # ---------------------------------------------------------------- Dashboard / tasks / quick replies / notifications (US4)
+  /dashboard/agent:
+    get:
+      tags: [Dashboard]
+      responses:
+        '200': { description: Agent dashboard, content: { application/json: { schema: { $ref: '#/components/schemas/AgentDashboard' } } } }
+  /tasks:
+    get:
+      tags: [Tasks]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [Open, Done] } }
+        - { name: dueBefore, in: query, schema: { type: string, format: date-time } }
+      responses:
+        '200': { description: My tasks, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TaskItem' } } } } }
+    post:
+      tags: [Tasks]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/TaskUpsert' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/TaskItem' } } } }
+  /tasks/{taskId}:
+    parameters: [ { name: taskId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    put:
+      tags: [Tasks]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/TaskUpsert' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/TaskItem' } } } }
+    delete:
+      tags: [Tasks]
+      responses:
+        '204': { description: Deleted }
+  /quick-replies:
+    get:
+      tags: [QuickReplies]
+      parameters:
+        - { name: language, in: query, schema: { $ref: '#/components/schemas/Language' } }
+        - { name: q, in: query, schema: { type: string } }
+      responses:
+        '200': { description: Shared + personal quick replies, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/QuickReply' } } } } }
+    post:
+      tags: [QuickReplies]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/QuickReplyUpsert' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/QuickReply' } } } }
+  /quick-replies/{quickReplyId}:
+    parameters: [ { name: quickReplyId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    put:
+      tags: [QuickReplies]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/QuickReplyUpsert' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/QuickReply' } } } }
+    delete:
+      tags: [QuickReplies]
+      responses:
+        '204': { description: Deleted }
+  /quick-replies/{quickReplyId}/render:
+    parameters: [ { name: quickReplyId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    post:
+      tags: [QuickReplies]
+      summary: Fill placeholders for a ticket
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [ticketId], properties: { ticketId: { type: string, format: uuid } } }
+      responses:
+        '200': { description: Rendered text, content: { application/json: { schema: { type: object, properties: { body: { type: string } } } } } }
+  /notifications:
+    get:
+      tags: [Notifications]
+      parameters:
+        - { name: unreadOnly, in: query, schema: { type: boolean } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { description: Notifications, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationPage' } } } }
+  /notifications/read:
+    post:
+      tags: [Notifications]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { ids: { type: array, items: { type: string, format: uuid } }, all: { type: boolean } } }
+      responses:
+        '204': { description: Marked read }
+  /notifications/preferences:
+    get:
+      tags: [Notifications]
+      responses:
+        '200': { description: Preferences, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/NotificationPreference' } } } } }
+    put:
+      tags: [Notifications]
+      requestBody:
+        content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/NotificationPreference' } } } }
+      responses:
+        '204': { description: Saved }
+        '400': { description: Attempt to mute a mandatory notification type }
+
+  # ---------------------------------------------------------------- SLA & automation (US7)
+  /sla/policies:
+    get:
+      tags: [Sla]
+      responses:
+        '200': { description: Policies, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/SlaPolicy' } } } } }
+    post:
+      tags: [Sla]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/SlaPolicy' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/SlaPolicy' } } } }
+  /sla/policies/{policyId}:
+    parameters: [ { name: policyId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    put:
+      tags: [Sla]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/SlaPolicy' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/SlaPolicy' } } } }
+    delete:
+      tags: [Sla]
+      responses:
+        '204': { description: Deleted }
+  /sla/calendars:
+    get:
+      tags: [Sla]
+      responses:
+        '200': { description: Business calendars, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/BusinessCalendar' } } } } }
+    post:
+      tags: [Sla]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/BusinessCalendar' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/BusinessCalendar' } } } }
+  /sla/calendars/{calendarId}:
+    parameters: [ { name: calendarId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    put:
+      tags: [Sla]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/BusinessCalendar' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/BusinessCalendar' } } } }
+  /automation/assignment-rules:
+    get:
+      tags: [Sla]
+      responses:
+        '200': { description: Rules, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/AssignmentRule' } } } } }
+    post:
+      tags: [Sla]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/AssignmentRule' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/AssignmentRule' } } } }
+  /automation/assignment-rules/{ruleId}:
+    parameters: [ { name: ruleId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    put:
+      tags: [Sla]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/AssignmentRule' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/AssignmentRule' } } } }
+    delete:
+      tags: [Sla]
+      responses:
+        '204': { description: Deleted }
+  /automation/escalation-rules:
+    get:
+      tags: [Sla]
+      responses:
+        '200': { description: Rules, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/EscalationRule' } } } } }
+    post:
+      tags: [Sla]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/EscalationRule' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/EscalationRule' } } } }
+  /automation/escalation-rules/{ruleId}:
+    parameters: [ { name: ruleId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    put:
+      tags: [Sla]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/EscalationRule' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/EscalationRule' } } } }
+    delete:
+      tags: [Sla]
+      responses:
+        '204': { description: Deleted }
+
+  # ---------------------------------------------------------------- Knowledge base (US8)
+  /knowledge/categories:
+    get:
+      tags: [Knowledge]
+      security: [ {}, { bearerAuth: [] } ]
+      responses:
+        '200': { description: Categories, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/KnowledgeCategory' } } } } }
+    post:
+      tags: [Knowledge]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/KnowledgeCategory' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/KnowledgeCategory' } } } }
+  /knowledge/articles:
+    get:
+      tags: [Knowledge]
+      security: [ {}, { bearerAuth: [] } ]
+      summary: Search articles (anonymous/customers see Public+Published only)
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/ArticleType' } }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: language, in: query, schema: { $ref: '#/components/schemas/Language' } }
+        - { name: status, in: query, description: Staff only, schema: { $ref: '#/components/schemas/ArticleStatus' } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { description: Articles, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleSummaryPage' } } } }
+    post:
+      tags: [Knowledge]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/ArticleUpsert' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Article' } } } }
+  /knowledge/articles/{articleId}:
+    parameters: [ { name: articleId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    get:
+      tags: [Knowledge]
+      security: [ {}, { bearerAuth: [] } ]
+      responses:
+        '200': { description: Article (increments view count), content: { application/json: { schema: { $ref: '#/components/schemas/Article' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Knowledge]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/ArticleUpsert' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Article' } } } }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Knowledge]
+      responses:
+        '204': { description: Deleted }
+  /knowledge/articles/{articleId}/publish:
+    parameters: [ { name: articleId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    post:
+      tags: [Knowledge]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [published], properties: { published: { type: boolean } } }
+      responses:
+        '200': { description: Status changed, content: { application/json: { schema: { $ref: '#/components/schemas/Article' } } } }
+  /knowledge/articles/{articleId}/vote:
+    parameters: [ { name: articleId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    post:
+      tags: [Knowledge]
+      security: [ {}, { bearerAuth: [] } ]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [helpful], properties: { helpful: { type: boolean } } }
+      responses:
+        '204': { description: Vote recorded (one per voter) }
+
+  # ---------------------------------------------------------------- AI (US10)
+  /ai/tickets/{ticketId}/summary:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    post:
+      tags: [Ai]
+      responses:
+        '200': { description: Summary, content: { application/json: { schema: { $ref: '#/components/schemas/AiSummary' } } } }
+        '403': { description: AI feature disabled }
+        '503': { $ref: '#/components/responses/AiUnavailable' }
+  /ai/tickets/{ticketId}/suggested-reply:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    post:
+      tags: [Ai]
+      summary: Draft reply for agent review (never sent automatically)
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { instructions: { type: string, maxLength: 500 } } }
+      responses:
+        '200': { description: Draft, content: { application/json: { schema: { $ref: '#/components/schemas/AiSuggestedReply' } } } }
+        '503': { $ref: '#/components/responses/AiUnavailable' }
+  /ai/tickets/{ticketId}/classification:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    post:
+      tags: [Ai]
+      responses:
+        '200': { description: Suggested category & priority, content: { application/json: { schema: { $ref: '#/components/schemas/AiClassification' } } } }
+        '503': { $ref: '#/components/responses/AiUnavailable' }
+  /ai/tickets/{ticketId}/suggested-articles:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    get:
+      tags: [Ai]
+      responses:
+        '200': { description: Recommended KB articles, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ArticleSummary' } } } } }
+
+  # ---------------------------------------------------------------- Customer portal (US5)
+  /portal/register:
+    post:
+      tags: [Portal]
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fullName, email, password, captchaToken]
+              properties:
+                fullName: { type: string, maxLength: 150 }
+                email: { type: string, format: email }
+                phone: { type: string }
+                password: { type: string, minLength: 10 }
+                preferredLanguage: { $ref: '#/components/schemas/Language' }
+                captchaToken: { type: string }
+      responses:
+        '202': { description: Registered; email confirmation sent }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /portal/tickets:
+    get:
+      tags: [Portal]
+      summary: My tickets (and company tickets if permitted)
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/TicketStatus' } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { description: Tickets, content: { application/json: { schema: { $ref: '#/components/schemas/PortalTicketPage' } } } }
+    post:
+      tags: [Portal]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/PortalTicketCreate' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/PortalTicket' } } } }
+  /portal/tickets/{ticketId}:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    get:
+      tags: [Portal]
+      summary: Ticket with public messages only
+      responses:
+        '200': { description: Ticket, content: { application/json: { schema: { $ref: '#/components/schemas/PortalTicket' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /portal/tickets/{ticketId}/messages:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    post:
+      tags: [Portal]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [body], properties: { body: { type: string, maxLength: 20000 }, attachmentIds: { type: array, items: { type: string, format: uuid } } } }
+      responses:
+        '201': { description: Reply added, content: { application/json: { schema: { $ref: '#/components/schemas/PortalMessage' } } } }
+  /portal/tickets/{ticketId}/feedback:
+    parameters: [ { $ref: '#/components/parameters/TicketId' } ]
+    post:
+      tags: [Portal]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/FeedbackCreate' } } }
+      responses:
+        '201': { description: Feedback stored }
+        '409': { description: Feedback already submitted or ticket not resolved }
+  /portal/uploads:
+    post:
+      tags: [Portal, Files]
+      requestBody:
+        content:
+          multipart/form-data:
+            schema: { type: object, required: [file], properties: { file: { type: string, format: binary } } }
+      responses:
+        '201': { description: Uploaded (to be linked to a ticket/message), content: { application/json: { schema: { $ref: '#/components/schemas/AttachmentInfo' } } } }
+
+  # ---------------------------------------------------------------- Public (anonymous)
+  /public/web-form:
+    post:
+      tags: [Public]
+      security: []
+      summary: Public web form submission (rate-limited + CAPTCHA)
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/WebFormSubmission' } } }
+      responses:
+        '201': { description: Ticket created, content: { application/json: { schema: { type: object, properties: { referenceNumber: { type: string } } } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /public/feedback/{token}:
+    parameters: [ { name: token, in: path, required: true, schema: { type: string } } ]
+    post:
+      tags: [Public]
+      security: []
+      summary: Survey link from email/SMS
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/FeedbackCreate' } } }
+      responses:
+        '201': { description: Stored }
+        '410': { description: Link expired or used }
+  /public/chat/sessions:
+    post:
+      tags: [Public]
+      security: []
+      summary: Start a website chat session; returns token for /hubs/chat
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { name: { type: string }, email: { type: string, format: email }, language: { $ref: '#/components/schemas/Language' }, captchaToken: { type: string } } }
+      responses:
+        '201': { description: Session, content: { application/json: { schema: { type: object, properties: { sessionId: { type: string, format: uuid }, token: { type: string }, botEnabled: { type: boolean } } } } } }
+  /public/branding:
+    get:
+      tags: [Public]
+      security: []
+      responses:
+        '200': { description: Public branding, content: { application/json: { schema: { $ref: '#/components/schemas/Branding' } } } }
+
+  # ---------------------------------------------------------------- Reports (US9)
+  /reports/dashboard:
+    get:
+      tags: [Reports]
+      parameters: [ { $ref: '#/components/parameters/From' }, { $ref: '#/components/parameters/To' }, { $ref: '#/components/parameters/DeptFilter' }, { $ref: '#/components/parameters/BranchFilter' } ]
+      responses:
+        '200': { description: Management KPIs, content: { application/json: { schema: { $ref: '#/components/schemas/ManagementDashboard' } } } }
+  /reports/{reportType}:
+    parameters:
+      - name: reportType
+        in: path
+        required: true
+        schema: { type: string, enum: [tickets, sla, agents, satisfaction] }
+    get:
+      tags: [Reports]
+      parameters:
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - { $ref: '#/components/parameters/DeptFilter' }
+        - { $ref: '#/components/parameters/BranchFilter' }
+        - { name: channel, in: query, schema: { $ref: '#/components/schemas/Channel' } }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: agentId, in: query, schema: { type: string, format: uuid } }
+        - { name: groupBy, in: query, schema: { type: string, enum: [day, week, month, status, category, priority, channel, agent, department, branch] } }
+      responses:
+        '200': { description: Report rows, content: { application/json: { schema: { $ref: '#/components/schemas/ReportResult' } } } }
+  /reports/{reportType}/export:
+    parameters:
+      - name: reportType
+        in: path
+        required: true
+        schema: { type: string, enum: [tickets, sla, agents, satisfaction] }
+    get:
+      tags: [Reports]
+      summary: Export filtered report (same filters as report) — audited
+      responses:
+        '200':
+          description: Spreadsheet
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: { schema: { type: string, format: binary } }
+
+  # ---------------------------------------------------------------- Administration (US3)
+  /admin/users:
+    get:
+      tags: [Admin]
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: roleId, in: query, schema: { type: string, format: uuid } }
+        - { name: departmentId, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { type: string, enum: [Active, Deactivated] } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { description: Users, content: { application/json: { schema: { $ref: '#/components/schemas/UserPage' } } } }
+    post:
+      tags: [Admin]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/UserUpsert' } } }
+      responses:
+        '201': { description: Created (invitation email sent), content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+  /admin/users/{userId}:
+    parameters: [ { name: userId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    get:
+      tags: [Admin]
+      responses:
+        '200': { description: User, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+    put:
+      tags: [Admin]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/UserUpsert' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+  /admin/users/{userId}/deactivate:
+    parameters: [ { name: userId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    post:
+      tags: [Admin]
+      summary: Deactivate user; open tickets return to department queue
+      responses:
+        '204': { description: Deactivated }
+  /admin/users/{userId}/reset-password:
+    parameters: [ { name: userId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    post:
+      tags: [Admin]
+      responses:
+        '202': { description: Reset email sent }
+  /admin/roles:
+    get:
+      tags: [Admin]
+      responses:
+        '200': { description: Roles with permissions, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Role' } } } } }
+    post:
+      tags: [Admin]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/Role' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Role' } } } }
+  /admin/roles/{roleId}:
+    parameters: [ { name: roleId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    put:
+      tags: [Admin]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/Role' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Role' } } } }
+    delete:
+      tags: [Admin]
+      responses:
+        '204': { description: Deleted }
+        '409': { description: System role or role in use }
+  /admin/permissions:
+    get:
+      tags: [Admin]
+      responses:
+        '200': { description: All permission keys, content: { application/json: { schema: { type: array, items: { type: string } } } } }
+  /admin/departments:
+    get:
+      tags: [Admin]
+      responses:
+        '200': { description: Departments, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Department' } } } } }
+    post:
+      tags: [Admin]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/Department' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Department' } } } }
+  /admin/departments/{departmentId}:
+    parameters: [ { name: departmentId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    put:
+      tags: [Admin]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/Department' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Department' } } } }
+  /admin/branches:
+    get:
+      tags: [Admin]
+      responses:
+        '200': { description: Branches, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Branch' } } } } }
+    post:
+      tags: [Admin]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/Branch' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Branch' } } } }
+  /admin/branches/{branchId}:
+    parameters: [ { name: branchId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    put:
+      tags: [Admin]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/Branch' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Branch' } } } }
+  /admin/categories:
+    get:
+      tags: [Admin]
+      responses:
+        '200': { description: Ticket categories, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Category' } } } } }
+    post:
+      tags: [Admin]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/Category' } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Category' } } } }
+  /admin/categories/{categoryId}:
+    parameters: [ { name: categoryId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    put:
+      tags: [Admin]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/Category' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Category' } } } }
+  /admin/channels:
+    get:
+      tags: [Admin, Channels]
+      responses:
+        '200': { description: Channel configurations (secrets masked), content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ChannelConfiguration' } } } } }
+  /admin/channels/{channel}:
+    parameters: [ { name: channel, in: path, required: true, schema: { $ref: '#/components/schemas/Channel' } } ]
+    put:
+      tags: [Admin, Channels]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/ChannelConfiguration' } } }
+      responses:
+        '200': { description: Saved, content: { application/json: { schema: { $ref: '#/components/schemas/ChannelConfiguration' } } } }
+  /admin/channels/{channel}/test:
+    parameters: [ { name: channel, in: path, required: true, schema: { $ref: '#/components/schemas/Channel' } } ]
+    post:
+      tags: [Admin, Channels]
+      summary: Send a test message / test connection
+      responses:
+        '200': { description: Test result, content: { application/json: { schema: { type: object, properties: { success: { type: boolean }, detail: { type: string } } } } } }
+  /admin/settings:
+    get:
+      tags: [Admin]
+      responses:
+        '200': { description: System settings, content: { application/json: { schema: { $ref: '#/components/schemas/SystemSettings' } } } }
+    put:
+      tags: [Admin]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/SystemSettings' } } }
+      responses:
+        '200': { description: Saved, content: { application/json: { schema: { $ref: '#/components/schemas/SystemSettings' } } } }
+  /admin/branding/logo:
+    post:
+      tags: [Admin]
+      requestBody:
+        content:
+          multipart/form-data:
+            schema: { type: object, required: [file], properties: { file: { type: string, format: binary } } }
+      responses:
+        '200': { description: Logo updated, content: { application/json: { schema: { $ref: '#/components/schemas/Branding' } } } }
+  /admin/audit-log:
+    get:
+      tags: [Admin]
+      parameters:
+        - { name: userId, in: query, schema: { type: string, format: uuid } }
+        - { name: entityType, in: query, schema: { type: string } }
+        - { name: entityId, in: query, schema: { type: string } }
+        - { name: action, in: query, schema: { type: string } }
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { description: Audit entries (read-only), content: { application/json: { schema: { $ref: '#/components/schemas/AuditLogPage' } } } }
+
+  # ---------------------------------------------------------------- Integrations (US11)
+  /admin/api-keys:
+    get:
+      tags: [Integrations]
+      responses:
+        '200': { description: API keys (no secrets), content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ApiKey' } } } } }
+    post:
+      tags: [Integrations]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, permissions]
+              properties:
+                name: { type: string, maxLength: 100 }
+                permissions: { type: array, items: { type: string } }
+                expiresAt: { type: string, format: date-time }
+      responses:
+        '201': { description: Created; `key` returned only once, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/ApiKey' }, { type: object, properties: { key: { type: string } } } ] } } } }
+  /admin/api-keys/{apiKeyId}/revoke:
+    parameters: [ { name: apiKeyId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    post:
+      tags: [Integrations]
+      responses:
+        '204': { description: Revoked }
+  /admin/webhooks:
+    get:
+      tags: [Integrations]
+      responses:
+        '200': { description: Subscriptions, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/WebhookSubscription' } } } } }
+    post:
+      tags: [Integrations]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/WebhookSubscription' } } }
+      responses:
+        '201': { description: Created; signing secret returned once, content: { application/json: { schema: { $ref: '#/components/schemas/WebhookSubscription' } } } }
+  /admin/webhooks/{webhookId}:
+    parameters: [ { name: webhookId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    put:
+      tags: [Integrations]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/WebhookSubscription' } } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/WebhookSubscription' } } } }
+    delete:
+      tags: [Integrations]
+      responses:
+        '204': { description: Deleted }
+  /admin/webhooks/{webhookId}/deliveries:
+    parameters: [ { name: webhookId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    get:
+      tags: [Integrations]
+      responses:
+        '200': { description: Recent deliveries, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/WebhookDelivery' } } } } }
+  /admin/erp:
+    get:
+      tags: [Integrations]
+      responses:
+        '200': { description: ERP connection (secrets masked), content: { application/json: { schema: { $ref: '#/components/schemas/ErpConnection' } } } }
+    put:
+      tags: [Integrations]
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/ErpConnection' } } }
+      responses:
+        '200': { description: Saved, content: { application/json: { schema: { $ref: '#/components/schemas/ErpConnection' } } } }
+
+  # ---------------------------------------------------------------- Files
+  /files/{attachmentId}:
+    parameters: [ { name: attachmentId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    get:
+      tags: [Files]
+      summary: Download attachment (authorization checked against owning record)
+      responses:
+        '200': { description: File, content: { application/octet-stream: { schema: { type: string, format: binary } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+    apiKey: { type: apiKey, in: header, name: X-Api-Key }
+
+  parameters:
+    Page: { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+    PageSize: { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+    CustomerId: { name: customerId, in: path, required: true, schema: { type: string, format: uuid } }
+    TicketId: { name: ticketId, in: path, required: true, schema: { type: string, format: uuid } }
+    From: { name: from, in: query, schema: { type: string, format: date } }
+    To: { name: to, in: query, schema: { type: string, format: date } }
+    DeptFilter: { name: departmentId, in: query, schema: { type: string, format: uuid } }
+    BranchFilter: { name: branchId, in: query, schema: { type: string, format: uuid } }
+
+  responses:
+    ValidationError:
+      description: Validation failed
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/ValidationProblemDetails' } } }
+    Unauthorized:
+      description: Not authenticated
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } }
+    Forbidden:
+      description: Not permitted
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } }
+    NotFound:
+      description: Not found (also returned for records outside the caller's data scope)
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } }
+    Conflict:
+      description: Stale version or invalid state; body includes `currentVersion`
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } }
+    TooManyRequests:
+      description: Rate limited
+      headers: { Retry-After: { schema: { type: integer } } }
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } }
+    AiUnavailable:
+      description: AI service temporarily unavailable
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } }
+
+  schemas:
+    # ---------- common
+    ProblemDetails:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        code: { type: string, description: 'Stable machine code, e.g. ticket.invalid-transition' }
+        correlationId: { type: string }
+        currentVersion: { type: string }
+    ValidationProblemDetails:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          properties:
+            errors: { type: object, additionalProperties: { type: array, items: { type: string } } }
+    PageMeta:
+      type: object
+      required: [page, pageSize, totalCount]
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        totalCount: { type: integer }
+    Language: { type: string, enum: [ar, en] }
+    Channel: { type: string, enum: [Email, WhatsApp, Sms, LiveChat, WebForm, Portal, Phone, Api] }
+    UserRef:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        fullName: { type: string }
+    NamedRef:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        nameEn: { type: string }
+        nameAr: { type: string }
+
+    # ---------- auth
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    TwoFactorChallenge:
+      type: object
+      properties:
+        challengeId: { type: string }
+    AuthResult:
+      type: object
+      required: [accessToken, expiresIn, user]
+      properties:
+        accessToken: { type: string }
+        expiresIn: { type: integer, description: seconds }
+        user: { $ref: '#/components/schemas/CurrentUser' }
+    CurrentUser:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        fullName: { type: string }
+        email: { type: string }
+        userType: { type: string, enum: [Staff, Customer] }
+        roles: { type: array, items: { type: string } }
+        permissions: { type: array, items: { type: string } }
+        departmentIds: { type: array, items: { type: string, format: uuid } }
+        branchId: { type: [string, 'null'], format: uuid }
+        preferredLanguage: { $ref: '#/components/schemas/Language' }
+
+    # ---------- customers
+    CustomerType: { type: string, enum: [Individual, Company] }
+    Address:
+      type: object
+      properties:
+        line1: { type: string, maxLength: 200 }
+        city: { type: string, maxLength: 100 }
+        country: { type: string, maxLength: 2, description: ISO 3166-1 alpha-2 }
+    CustomerUpsert:
+      type: object
+      required: [type, name]
+      properties:
+        type: { $ref: '#/components/schemas/CustomerType' }
+        name: { type: string, maxLength: 200 }
+        primaryEmail: { type: [string, 'null'], format: email }
+        primaryPhone: { type: [string, 'null'], pattern: '^\+[1-9][0-9]{6,14}$' }
+        additionalEmails: { type: array, items: { type: string, format: email } }
+        additionalPhones: { type: array, items: { type: string } }
+        address: { $ref: '#/components/schemas/Address' }
+        preferredLanguage: { $ref: '#/components/schemas/Language' }
+        branchId: { type: [string, 'null'], format: uuid }
+        tags: { type: array, items: { type: string } }
+        erpReference: { type: [string, 'null'], maxLength: 64 }
+        version: { type: string, description: Required on update }
+    CustomerSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        referenceNumber: { type: string }
+        type: { $ref: '#/components/schemas/CustomerType' }
+        name: { type: string }
+        primaryEmail: { type: [string, 'null'] }
+        primaryPhone: { type: [string, 'null'] }
+        openTicketCount: { type: integer }
+        needsReview: { type: boolean }
+    Customer:
+      allOf:
+        - $ref: '#/components/schemas/CustomerUpsert'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            referenceNumber: { type: string }
+            needsReview: { type: boolean }
+            contacts: { type: array, items: { $ref: '#/components/schemas/ContactPerson' } }
+            createdAt: { type: string, format: date-time }
+            version: { type: string }
+    CustomerSummaryPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/CustomerSummary' } } }
+    ContactPersonUpsert:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 150 }
+        email: { type: [string, 'null'], format: email }
+        phone: { type: [string, 'null'] }
+        jobTitle: { type: [string, 'null'] }
+        isPrimary: { type: boolean }
+    ContactPerson:
+      allOf:
+        - $ref: '#/components/schemas/ContactPersonUpsert'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    TimelineItem:
+      type: object
+      properties:
+        kind: { type: string, enum: [Ticket, Message, Note, Attachment, Feedback] }
+        occurredAt: { type: string, format: date-time }
+        title: { type: string }
+        excerpt: { type: string }
+        channel: { $ref: '#/components/schemas/Channel' }
+        ticketId: { type: [string, 'null'], format: uuid }
+        actor: { $ref: '#/components/schemas/UserRef' }
+    TimelinePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/TimelineItem' } } }
+    NoteCreate:
+      type: object
+      required: [body]
+      properties:
+        body: { type: string, maxLength: 4000 }
+    Note:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        body: { type: string }
+        author: { $ref: '#/components/schemas/UserRef' }
+        createdAt: { type: string, format: date-time }
+    AttachmentInfo:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        fileName: { type: string }
+        contentType: { type: string }
+        sizeBytes: { type: integer, maximum: 10485760 }
+        downloadUrl: { type: string }
+    ErpCustomerInfo:
+      type: object
+      properties:
+        erpReference: { type: string }
+        displayName: { type: string }
+        balance: { type: [number, 'null'] }
+        currency: { type: [string, 'null'] }
+        recentOrders:
+          type: array
+          items:
+            type: object
+            properties:
+              number: { type: string }
+              date: { type: string, format: date }
+              total: { type: number }
+              status: { type: string }
+        recentInvoices:
+          type: array
+          items:
+            type: object
+            properties:
+              number: { type: string }
+              date: { type: string, format: date }
+              amount: { type: number }
+              status: { type: string }
+        retrievedAt: { type: string, format: date-time }
+
+    # ---------- tickets
+    TicketStatus: { type: string, enum: [New, Open, InProgress, PendingCustomer, Resolved, Closed] }
+    TicketPriority: { type: string, enum: [Low, Medium, High, Urgent] }
+    SlaInfo:
+      type: object
+      properties:
+        firstResponseDueAt: { type: [string, 'null'], format: date-time }
+        resolutionDueAt: { type: [string, 'null'], format: date-time }
+        firstRespondedAt: { type: [string, 'null'], format: date-time }
+        isPaused: { type: boolean }
+        state: { type: string, enum: [onTrack, atRisk, breached, met, none] }
+        firstResponseBreached: { type: boolean }
+        resolutionBreached: { type: boolean }
+    TicketCreate:
+      type: object
+      required: [subject, description, customerId, categoryId]
+      properties:
+        subject: { type: string, maxLength: 250 }
+        description: { type: string, maxLength: 20000 }
+        customerId: { type: string, format: uuid }
+        contactPersonId: { type: [string, 'null'], format: uuid }
+        channel: { $ref: '#/components/schemas/Channel' }
+        categoryId: { type: string, format: uuid }
+        priority: { $ref: '#/components/schemas/TicketPriority' }
+        departmentId: { type: [string, 'null'], format: uuid, description: Defaults from category }
+        assigneeId: { type: [string, 'null'], format: uuid }
+        attachmentIds: { type: array, items: { type: string, format: uuid } }
+    TicketUpdate:
+      type: object
+      required: [version]
+      properties:
+        subject: { type: string, maxLength: 250 }
+        categoryId: { type: string, format: uuid }
+        priority: { $ref: '#/components/schemas/TicketPriority' }
+        departmentId: { type: string, format: uuid }
+        version: { type: string }
+    TicketSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        referenceNumber: { type: string }
+        subject: { type: string }
+        status: { $ref: '#/components/schemas/TicketStatus' }
+        priority: { $ref: '#/components/schemas/TicketPriority' }
+        channel: { $ref: '#/components/schemas/Channel' }
+        customer: { type: object, properties: { id: { type: string, format: uuid }, name: { type: string } } }
+        assignee: { $ref: '#/components/schemas/UserRef' }
+        category: { $ref: '#/components/schemas/NamedRef' }
+        department: { $ref: '#/components/schemas/NamedRef' }
+        sla: { $ref: '#/components/schemas/SlaInfo' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Ticket:
+      allOf:
+        - $ref: '#/components/schemas/TicketSummary'
+        - type: object
+          properties:
+            description: { type: string }
+            contactPerson: { $ref: '#/components/schemas/ContactPerson' }
+            branch: { $ref: '#/components/schemas/NamedRef' }
+            escalationLevel: { type: integer }
+            resolvedAt: { type: [string, 'null'], format: date-time }
+            closedAt: { type: [string, 'null'], format: date-time }
+            aiSuggestion: { $ref: '#/components/schemas/AiClassification' }
+            attachments: { type: array, items: { $ref: '#/components/schemas/AttachmentInfo' } }
+            allowedTransitions: { type: array, items: { $ref: '#/components/schemas/TicketStatus' } }
+            version: { type: string }
+    TicketSummaryPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/TicketSummary' } } }
+    TicketHistoryEntry:
+      type: object
+      properties:
+        timestamp: { type: string, format: date-time }
+        user: { $ref: '#/components/schemas/UserRef' }
+        changeType: { type: string, enum: [Created, FieldChanged, Assigned, StatusChanged, Escalated, SlaBreached, Merged, Reopened] }
+        field: { type: [string, 'null'] }
+        oldValue: { type: [string, 'null'] }
+        newValue: { type: [string, 'null'] }
+        reason: { type: [string, 'null'] }
+
+    # ---------- messages
+    Message:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        ticketId: { type: string, format: uuid }
+        direction: { type: string, enum: [Inbound, Outbound] }
+        isInternal: { type: boolean }
+        isFromBot: { type: boolean }
+        channel: { $ref: '#/components/schemas/Channel' }
+        body: { type: string }
+        sender: { type: object, properties: { kind: { type: string, enum: [Agent, Customer, System, Bot] }, id: { type: [string, 'null'], format: uuid }, name: { type: string } } }
+        mentions: { type: array, items: { $ref: '#/components/schemas/UserRef' } }
+        attachments: { type: array, items: { $ref: '#/components/schemas/AttachmentInfo' } }
+        deliveryStatus: { type: [string, 'null'], enum: [Pending, Sent, Delivered, Read, Failed, null] }
+        deliveryError: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+    ReplyCreate:
+      type: object
+      required: [body]
+      properties:
+        body: { type: string, maxLength: 20000 }
+        channel: { $ref: '#/components/schemas/Channel' }
+        attachmentIds: { type: array, items: { type: string, format: uuid } }
+        setStatus: { $ref: '#/components/schemas/TicketStatus' }
+        usedAiSuggestion: { type: boolean }
+    InternalNoteCreate:
+      type: object
+      required: [body]
+      properties:
+        body: { type: string, maxLength: 20000 }
+        mentionUserIds: { type: array, items: { type: string, format: uuid } }
+
+    # ---------- dashboard / tasks / quick replies / notifications
+    AgentDashboard:
+      type: object
+      properties:
+        countsByStatus: { type: object, additionalProperties: { type: integer } }
+        atRisk: { type: array, items: { $ref: '#/components/schemas/TicketSummary' } }
+        overdue: { type: array, items: { $ref: '#/components/schemas/TicketSummary' } }
+        assigned: { type: array, items: { $ref: '#/components/schemas/TicketSummary' } }
+        queueUnassignedCount: { type: integer }
+        tasksDueToday: { type: array, items: { $ref: '#/components/schemas/TaskItem' } }
+        unreadNotifications: { type: integer }
+    TaskUpsert:
+      type: object
+      required: [title, dueAt]
+      properties:
+        title: { type: string, maxLength: 200 }
+        notes: { type: [string, 'null'], maxLength: 2000 }
+        dueAt: { type: string, format: date-time }
+        ticketId: { type: [string, 'null'], format: uuid }
+        customerId: { type: [string, 'null'], format: uuid }
+        status: { type: string, enum: [Open, Done] }
+    TaskItem:
+      allOf:
+        - $ref: '#/components/schemas/TaskUpsert'
+        - type: object
+          properties: { id: { type: string, format: uuid } }
+    QuickReplyUpsert:
+      type: object
+      required: [title, body, language, scope]
+      properties:
+        title: { type: string, maxLength: 100 }
+        body: { type: string, maxLength: 5000 }
+        language: { $ref: '#/components/schemas/Language' }
+        scope: { type: string, enum: [Shared, Personal] }
+        departmentId: { type: [string, 'null'], format: uuid }
+    QuickReply:
+      allOf:
+        - $ref: '#/components/schemas/QuickReplyUpsert'
+        - type: object
+          properties: { id: { type: string, format: uuid }, ownerId: { type: [string, 'null'], format: uuid } }
+    Notification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [Assigned, Mentioned, Reminder, SlaWarning, SlaBreached, Escalated, ChatWaiting] }
+        title: { type: string }
+        body: { type: string }
+        link: { type: string }
+        isRead: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    NotificationPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/Notification' } } }
+    NotificationPreference:
+      type: object
+      properties:
+        type: { type: string }
+        inApp: { type: boolean }
+        email: { type: boolean }
+        mandatory: { type: boolean, readOnly: true }
+
+    # ---------- SLA & automation
+    SlaPolicy:
+      type: object
+      required: [name, priority, firstResponseMinutes, resolutionMinutes, calendarId]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        name: { type: string, maxLength: 100 }
+        departmentId: { type: [string, 'null'], format: uuid }
+        priority: { $ref: '#/components/schemas/TicketPriority' }
+        firstResponseMinutes: { type: integer, minimum: 1 }
+        resolutionMinutes: { type: integer, minimum: 1 }
+        calendarId: { type: string, format: uuid }
+        warningThresholdPercent: { type: integer, minimum: 1, maximum: 99, default: 80 }
+        isActive: { type: boolean }
+    BusinessCalendar:
+      type: object
+      required: [name, timeZoneId, workingHours]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        name: { type: string }
+        timeZoneId: { type: string, default: Asia/Riyadh }
+        workingHours:
+          type: array
+          items:
+            type: object
+            required: [dayOfWeek, start, end]
+            properties:
+              dayOfWeek: { type: string, enum: [Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday] }
+              start: { type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$' }
+              end: { type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$' }
+        holidays:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              nameEn: { type: string }
+              nameAr: { type: string }
+    AssignmentRule:
+      type: object
+      required: [departmentId, strategy]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        departmentId: { type: string, format: uuid }
+        categoryId: { type: [string, 'null'], format: uuid }
+        strategy: { type: string, enum: [RoundRobin] }
+        onlyAvailableAgents: { type: boolean, default: true }
+        order: { type: integer }
+        isActive: { type: boolean }
+    EscalationRule:
+      type: object
+      required: [trigger, target]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        trigger: { type: string, enum: [SlaWarning, SlaBreach] }
+        target: { type: string, enum: [FirstResponse, Resolution] }
+        departmentId: { type: [string, 'null'], format: uuid }
+        priority: { $ref: '#/components/schemas/TicketPriority' }
+        notifyUserIds: { type: array, items: { type: string, format: uuid } }
+        notifyRole: { type: [string, 'null'] }
+        notifyAssignee: { type: boolean, default: true }
+        reassignToUserId: { type: [string, 'null'], format: uuid }
+        raisePriority: { type: boolean }
+        isActive: { type: boolean }
+
+    # ---------- knowledge base
+    ArticleType: { type: string, enum: [Faq, HelpArticle, Guide] }
+    ArticleStatus: { type: string, enum: [Draft, Published, Unpublished] }
+    KnowledgeCategory:
+      type: object
+      required: [nameEn, nameAr]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        nameEn: { type: string }
+        nameAr: { type: string }
+        parentId: { type: [string, 'null'], format: uuid }
+        sortOrder: { type: integer }
+    ArticleUpsert:
+      type: object
+      required: [type, title, body, language, categoryId, visibility]
+      properties:
+        type: { $ref: '#/components/schemas/ArticleType' }
+        title: { type: string, maxLength: 250 }
+        body: { type: string, description: Sanitized HTML }
+        language: { $ref: '#/components/schemas/Language' }
+        translationGroupId: { type: [string, 'null'], format: uuid }
+        categoryId: { type: string, format: uuid }
+        visibility: { type: string, enum: [Public, Internal] }
+        version: { type: string }
+    ArticleSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/ArticleType' }
+        title: { type: string }
+        excerpt: { type: string }
+        language: { $ref: '#/components/schemas/Language' }
+        visibility: { type: string, enum: [Public, Internal] }
+        status: { $ref: '#/components/schemas/ArticleStatus' }
+        url: { type: string, description: Public portal URL when Public+Published }
+    Article:
+      allOf:
+        - $ref: '#/components/schemas/ArticleUpsert'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            status: { $ref: '#/components/schemas/ArticleStatus' }
+            publishedAt: { type: [string, 'null'], format: date-time }
+            viewCount: { type: integer }
+            helpfulCount: { type: integer }
+            notHelpfulCount: { type: integer }
+            url: { type: string }
+            version: { type: string }
+    ArticleSummaryPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/ArticleSummary' } } }
+
+    # ---------- AI
+    AiSummary:
+      type: object
+      properties:
+        issue: { type: string }
+        actionsTaken: { type: string }
+        currentState: { type: string }
+        language: { $ref: '#/components/schemas/Language' }
+        generatedAt: { type: string, format: date-time }
+    AiSuggestedReply:
+      type: object
+      properties:
+        body: { type: string }
+        language: { $ref: '#/components/schemas/Language' }
+        sourceArticleIds: { type: array, items: { type: string, format: uuid } }
+    AiClassification:
+      type: object
+      properties:
+        categoryId: { type: [string, 'null'], format: uuid }
+        priority: { $ref: '#/components/schemas/TicketPriority' }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        rationale: { type: string }
+
+    # ---------- portal / public
+    PortalTicketCreate:
+      type: object
+      required: [subject, description, categoryId]
+      properties:
+        subject: { type: string, maxLength: 250 }
+        description: { type: string, maxLength: 20000 }
+        categoryId: { type: string, format: uuid }
+        attachmentIds: { type: array, items: { type: string, format: uuid } }
+    PortalMessage:
+      type: object
+      description: Public message only (internal notes never included)
+      properties:
+        id: { type: string, format: uuid }
+        direction: { type: string, enum: [Inbound, Outbound] }
+        body: { type: string }
+        senderName: { type: string }
+        attachments: { type: array, items: { $ref: '#/components/schemas/AttachmentInfo' } }
+        createdAt: { type: string, format: date-time }
+    PortalTicket:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        referenceNumber: { type: string }
+        subject: { type: string }
+        status: { $ref: '#/components/schemas/TicketStatus' }
+        category: { $ref: '#/components/schemas/NamedRef' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        messages: { type: array, items: { $ref: '#/components/schemas/PortalMessage' } }
+        canGiveFeedback: { type: boolean }
+    PortalTicketPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/PortalTicket' } } }
+    FeedbackCreate:
+      type: object
+      required: [rating]
+      properties:
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: [string, 'null'], maxLength: 1000 }
+    WebFormSubmission:
+      type: object
+      required: [name, email, categoryId, subject, description, captchaToken]
+      properties:
+        name: { type: string, maxLength: 150 }
+        email: { type: string, format: email }
+        phone: { type: [string, 'null'] }
+        categoryId: { type: string, format: uuid }
+        subject: { type: string, maxLength: 250 }
+        description: { type: string, maxLength: 20000 }
+        language: { $ref: '#/components/schemas/Language' }
+        captchaToken: { type: string }
+    Branding:
+      type: object
+      properties:
+        systemNameEn: { type: string }
+        systemNameAr: { type: string }
+        logoUrl: { type: [string, 'null'] }
+        primaryColor: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+        emailFooterEn: { type: string }
+        emailFooterAr: { type: string }
+
+    # ---------- reports
+    ManagementDashboard:
+      type: object
+      properties:
+        openTickets: { type: integer }
+        newToday: { type: integer }
+        slaCompliancePercent: { type: number }
+        avgFirstResponseMinutes: { type: number }
+        avgResolutionMinutes: { type: number }
+        avgSatisfaction: { type: number }
+        byChannel: { type: object, additionalProperties: { type: integer } }
+        byStatus: { type: object, additionalProperties: { type: integer } }
+    ReportResult:
+      type: object
+      properties:
+        reportType: { type: string }
+        columns: { type: array, items: { type: object, properties: { key: { type: string }, labelEn: { type: string }, labelAr: { type: string }, type: { type: string, enum: [string, number, percent, duration, date] } } } }
+        rows: { type: array, items: { type: object, additionalProperties: true } }
+        totals: { type: object, additionalProperties: true }
+        generatedAt: { type: string, format: date-time }
+
+    # ---------- admin
+    UserUpsert:
+      type: object
+      required: [email, fullName, roleIds, departmentIds]
+      properties:
+        email: { type: string, format: email }
+        fullName: { type: string, maxLength: 150 }
+        roleIds: { type: array, minItems: 1, items: { type: string, format: uuid } }
+        departmentIds: { type: array, minItems: 1, items: { type: string, format: uuid } }
+        branchId: { type: string, format: uuid }
+        preferredLanguage: { $ref: '#/components/schemas/Language' }
+        isAvailable: { type: boolean }
+    User:
+      allOf:
+        - $ref: '#/components/schemas/UserUpsert'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string, enum: [Active, Deactivated] }
+            twoFactorEnabled: { type: boolean }
+            lastSignInAt: { type: [string, 'null'], format: date-time }
+    UserPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/User' } } }
+    Role:
+      type: object
+      required: [name, permissions]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        name: { type: string, maxLength: 50 }
+        isSystem: { type: boolean, readOnly: true }
+        permissions: { type: array, items: { type: string } }
+    Department:
+      type: object
+      required: [nameEn, nameAr]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        nameEn: { type: string }
+        nameAr: { type: string }
+        escalationOwnerId: { type: [string, 'null'], format: uuid }
+        isActive: { type: boolean }
+    Branch:
+      type: object
+      required: [nameEn, nameAr]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        nameEn: { type: string }
+        nameAr: { type: string }
+        timeZoneId: { type: string, default: Asia/Riyadh }
+        isActive: { type: boolean }
+    Category:
+      type: object
+      required: [nameEn, nameAr]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        nameEn: { type: string }
+        nameAr: { type: string }
+        departmentId: { type: [string, 'null'], format: uuid }
+        sortOrder: { type: integer }
+        isActive: { type: boolean }
+    ChannelConfiguration:
+      type: object
+      properties:
+        channel: { $ref: '#/components/schemas/Channel' }
+        isEnabled: { type: boolean }
+        defaultDepartmentId: { type: [string, 'null'], format: uuid }
+        settings:
+          type: object
+          additionalProperties: true
+          description: Provider-specific settings; secret values are write-only and returned masked (`***`)
+        lastPolledAt: { type: [string, 'null'], format: date-time, readOnly: true }
+        status: { type: string, enum: [Ok, Error, Disabled], readOnly: true }
+    SystemSettings:
+      type: object
+      properties:
+        organizationName: { type: string }
+        timeZoneId: { type: string }
+        defaultLanguage: { $ref: '#/components/schemas/Language' }
+        reopenWindowDays: { type: integer, default: 7 }
+        autoCloseResolvedAfterDays: { type: integer, default: 7 }
+        priorityDisplayNames: { type: object, additionalProperties: { $ref: '#/components/schemas/NamedRef' } }
+        branding: { $ref: '#/components/schemas/Branding' }
+        ai:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            summary: { type: boolean }
+            suggestedReply: { type: boolean }
+            classification: { type: boolean }
+            suggestedArticles: { type: boolean }
+            chatbot: { type: boolean }
+        attachments:
+          type: object
+          properties:
+            maxBytes: { type: integer, maximum: 10485760 }
+            allowedTypes: { type: array, items: { type: string } }
+    AuditLogEntry:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        timestamp: { type: string, format: date-time }
+        user: { $ref: '#/components/schemas/UserRef' }
+        apiKeyName: { type: [string, 'null'] }
+        action: { type: string }
+        entityType: { type: string }
+        entityId: { type: [string, 'null'] }
+        changes: { type: object, additionalProperties: true }
+        ipAddress: { type: string }
+        correlationId: { type: string }
+    AuditLogPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          properties: { items: { type: array, items: { $ref: '#/components/schemas/AuditLogEntry' } } }
+
+    # ---------- integrations
+    ApiKey:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        prefix: { type: string }
+        permissions: { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: [string, 'null'], format: date-time }
+        revokedAt: { type: [string, 'null'], format: date-time }
+        lastUsedAt: { type: [string, 'null'], format: date-time }
+    WebhookSubscription:
+      type: object
+      required: [name, url, events]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        name: { type: string }
+        url: { type: string, format: uri, pattern: '^https://' }
+        events: { type: array, items: { type: string, enum: [ticket.created, ticket.updated, ticket.status_changed, customer.created] } }
+        isActive: { type: boolean }
+        secret: { type: string, readOnly: true, description: Returned only on create }
+    WebhookDelivery:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        eventType: { type: string }
+        attempt: { type: integer }
+        responseStatus: { type: [integer, 'null'] }
+        deliveredAt: { type: [string, 'null'], format: date-time }
+        nextAttemptAt: { type: [string, 'null'], format: date-time }
+        failedPermanentlyAt: { type: [string, 'null'], format: date-time }
+    ErpConnection:
+      type: object
+      properties:
+        isEnabled: { type: boolean }
+        baseUrl: { type: string, format: uri }
+        authType: { type: string, enum: [ApiKey, Basic, OAuth2ClientCredentials] }
+        credentials: { type: object, additionalProperties: { type: string }, writeOnly: true }
+        customerEndpoint: { type: string, description: 'Path template, e.g. /customers/{erpReference}' }
+        ordersEndpoint: { type: string }
+        invoicesEndpoint: { type: string }
+        cacheMinutes: { type: integer, default: 10 }
