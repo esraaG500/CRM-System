@@ -16,7 +16,4 @@
     <PackageReference Include="Shouldly" />
     <PackageReference Include="NetArchTest.Rules" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="../../src/Crm.Api/Crm.Api.csproj" />
-  </ItemGroup>
 </Project>

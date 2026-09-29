@@ -18,7 +18,4 @@
     <PackageReference Include="Respawn" />
     <PackageReference Include="Testcontainers.MsSql" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="../../src/Crm.Api/Crm.Api.csproj" />
-  </ItemGroup>
 </Project>
