@@ -17,7 +17,7 @@ import { LanguageService } from '../../core/i18n/language';
   template: `
     <div class="page">
       <section class="brand-side" aria-hidden="true">
-        <div class="brand"><span class="mark"></span>{{ 'app.name' | transloco }}</div>
+        <div class="brand"><img class="mark" src="brand/crm-logo.png" alt="" width="40" height="40" />{{ 'app.name' | transloco }}</div>
         <p class="tagline">{{ 'login.tagline' | transloco }}</p>
         <div class="preview">
           <span class="row u"><i></i><b></b><em></em></span>
@@ -67,7 +67,7 @@ import { LanguageService } from '../../core/i18n/language';
         linear-gradient(160deg, #6a45a3 0%, var(--crm-brand-strong) 55%, #2c1c48 100%);
     }
     .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: var(--crm-text-l); }
-    .mark { width: 28px; height: 28px; border-radius: 9px; background: rgb(255 255 255 / 92%); }
+    .mark { width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 0 0 3px rgb(255 255 255 / 85%), 0 4px 14px rgb(0 0 0 / 25%); }
     .tagline { margin: auto 0 0; max-width: 26ch; font-size: 1.75rem; line-height: 1.3; font-weight: 500; letter-spacing: -0.01em; }
 
     // Abstract ticket queue: the product's priority edges, echoed as decoration.

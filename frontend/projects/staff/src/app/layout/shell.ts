@@ -26,7 +26,7 @@ interface NavItem { path: string; icon: string; label: string; exact: boolean; }
     <div class="frame" [class.compact]="compact()">
       <aside class="rail" [class.open]="menuOpen()" [attr.aria-hidden]="compact() && !menuOpen()">
         <a class="brand" routerLink="/" (click)="menuOpen.set(false)">
-          <span class="mark" aria-hidden="true"></span>
+          <img class="mark" src="brand/crm-logo.png" alt="" width="32" height="32" />
           <span>{{ 'app.name' | transloco }}</span>
         </a>
         <nav>
@@ -94,11 +94,7 @@ interface NavItem { path: string; icon: string; label: string; exact: boolean; }
       display: flex; align-items: center; gap: 10px; padding: 8px 12px 20px;
       font-weight: 600; font-size: var(--crm-text-l); color: var(--crm-ink); text-decoration: none;
     }
-    .mark {
-      width: 28px; height: 28px; border-radius: 9px; flex: none;
-      background: linear-gradient(135deg, var(--crm-brand), #8f63c9);
-      box-shadow: 0 2px 6px rgb(91 59 140 / 30%);
-    }
+    .mark { width: 32px; height: 32px; border-radius: 50%; flex: none; }
     nav { display: flex; flex-direction: column; gap: 4px; }
     nav a {
       display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px;
