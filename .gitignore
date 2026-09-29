@@ -1,0 +1,27 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+packages/
+TestResults/
+*.trx
+appsettings.*.local.json
+# Node / Angular
+node_modules/
+dist/
+build/
+coverage/
+.angular/
+*.log
+.env*
+# Uploads (dev)
+backend/src/Crm.Api/App_Data/
+# OS / IDE
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/
+.vs/

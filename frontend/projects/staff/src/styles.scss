@@ -1,0 +1,180 @@
+@use '@angular/material' as mat;
+
+// ---------------------------------------------------------------------------
+// Design tokens. Brand values are CSS variables so custom branding (FR-052)
+// can override them at runtime without a rebuild.
+// ---------------------------------------------------------------------------
+:root {
+  --crm-ink: #1f1a2e;
+  --crm-ink-soft: #6a6480;
+  --crm-brand: #5b3b8c;
+  --crm-brand-strong: #472d70;
+  --crm-brand-soft: #f1ecf8;
+  --crm-bg: #f6f6f9;
+  --crm-mist: var(--crm-bg);
+  --crm-surface: #ffffff;
+  --crm-surface-2: #fafafc;
+  --crm-rule: #ebe9f1;
+
+  --crm-urgent: #c4320a;
+  --crm-high: #b25e09;
+  --crm-medium: #2f6fb2;
+  --crm-low: #8a859a;
+
+  --crm-font: 'IBM Plex Sans', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --crm-radius-s: 8px;
+  --crm-radius-m: 14px;
+  --crm-shadow: 0 1px 2px rgb(31 26 46 / 4%), 0 2px 8px rgb(31 26 46 / 4%);
+
+  --crm-text-xs: 0.75rem;
+  --crm-text-s: 0.8125rem;
+  --crm-text-m: 0.875rem;
+  --crm-text-l: 1rem;
+  --crm-text-xl: 1.25rem;
+  --crm-text-2xl: 1.625rem;
+}
+
+// Arabic text reads best with the Arabic face first.
+:root:lang(ar) { --crm-font: 'IBM Plex Sans Arabic', 'IBM Plex Sans', system-ui, sans-serif; }
+
+html {
+  color-scheme: light;
+  @include mat.theme((
+    color: (primary: mat.$violet-palette, tertiary: mat.$magenta-palette, theme-type: light),
+    typography: (plain-family: 'IBM Plex Sans, IBM Plex Sans Arabic, sans-serif', brand-family: 'IBM Plex Sans, IBM Plex Sans Arabic, sans-serif'),
+    density: -2,
+  ));
+
+  --mat-sys-primary: var(--crm-brand);
+  --mat-sys-surface: var(--crm-surface);
+  --mat-sys-on-surface: var(--crm-ink);
+  --mat-sys-outline-variant: var(--crm-rule);
+  --mdc-outlined-text-field-container-shape: var(--crm-radius-s);
+  --mat-select-trigger-text-font: var(--crm-font);
+  --mat-dialog-container-shape: 16px;
+}
+
+html:lang(ar) {
+  --mat-sys-body-large-font: 'IBM Plex Sans Arabic', sans-serif;
+  --mat-sys-body-medium-font: 'IBM Plex Sans Arabic', sans-serif;
+  --mat-sys-label-large-font: 'IBM Plex Sans Arabic', sans-serif;
+  --mat-sys-title-large-font: 'IBM Plex Sans Arabic', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--crm-font);
+  font-size: var(--crm-text-m);
+  line-height: 1.5;
+  color: var(--crm-ink);
+  background: var(--crm-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; }
+h1 { font-size: var(--crm-text-2xl); }
+h2 { font-size: var(--crm-text-l); }
+h3 { font-size: var(--crm-text-m); }
+
+a { color: var(--crm-brand); }
+
+:focus-visible { outline: 2px solid var(--crm-brand); outline-offset: 2px; border-radius: 4px; }
+
+.crm-num { font-variant-numeric: tabular-nums; font-family: 'IBM Plex Sans', var(--crm-font); }
+
+.crm-muted { color: var(--crm-ink-soft); }
+
+.crm-page { padding: 28px 32px 40px; max-width: 1440px; margin-inline: auto; }
+.crm-page-head { display: flex; align-items: center; gap: 16px; margin-block-end: 24px; flex-wrap: wrap; }
+.crm-page-head h1 { flex: 1; }
+
+.crm-panel {
+  background: var(--crm-surface);
+  border: 1px solid var(--crm-rule);
+  border-radius: var(--crm-radius-m);
+  box-shadow: var(--crm-shadow);
+  overflow: hidden;
+}
+
+// Priority edge: the one consistent signal across rows and headers.
+.crm-edge { border-inline-start: 3px solid transparent; }
+.crm-edge-Urgent { border-inline-start-color: var(--crm-urgent); }
+.crm-edge-High { border-inline-start-color: var(--crm-high); }
+.crm-edge-Medium { border-inline-start-color: var(--crm-medium); }
+.crm-edge-Low { border-inline-start-color: var(--crm-low); }
+
+.crm-table { width: 100%; border-collapse: collapse; }
+.crm-table th {
+  text-align: start;
+  font-weight: 500;
+  font-size: var(--crm-text-s);
+  color: var(--crm-ink-soft);
+  background: var(--crm-surface-2);
+  padding: 11px 14px;
+  border-block-end: 1px solid var(--crm-rule);
+  white-space: nowrap;
+}
+.crm-table td { padding: 12px 14px; border-block-end: 1px solid var(--crm-rule); vertical-align: middle; }
+.crm-table tbody tr { cursor: pointer; transition: background-color 120ms ease; }
+.crm-table tbody tr:hover { background: var(--crm-brand-soft); }
+.crm-table tbody tr:last-child td { border-block-end: 0; }
+
+.crm-empty { padding: 48px 24px; text-align: center; color: var(--crm-ink-soft); margin: 0; }
+
+.crm-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 16px; align-items: start; }
+
+.mat-mdc-form-field { width: 100%; }
+
+// ---------------------------------------------------------------------------
+// Form fields: underline only (no box). Label floats above, line turns brand on focus.
+// ---------------------------------------------------------------------------
+html {
+  --mat-form-field-filled-container-color: transparent;
+  --mat-form-field-filled-disabled-container-color: transparent;
+  --mat-form-field-filled-container-shape: 0;
+  --mat-form-field-filled-active-indicator-color: #d9d5e3;
+  --mat-form-field-filled-hover-active-indicator-color: var(--crm-ink-soft);
+  --mat-form-field-filled-focus-active-indicator-color: var(--crm-brand);
+  --mat-form-field-filled-focus-active-indicator-height: 2px;
+  --mat-form-field-filled-focus-label-text-color: var(--crm-brand);
+  --mat-form-field-filled-label-text-color: var(--crm-ink-soft);
+  // Compact theme density hides filled labels by default; underline fields need them.
+  --mat-form-field-filled-label-display: block;
+  --mat-form-field-filled-with-label-container-padding-top: 24px;
+  --mat-form-field-filled-with-label-container-padding-bottom: 6px;
+  --mat-form-field-container-height: 56px;
+  --mat-form-field-state-layer-color: transparent;
+  --mat-form-field-hover-state-layer-opacity: 0;
+  --mat-form-field-focus-state-layer-opacity: 0;
+
+  // Dialogs size to their content up to 95% of the viewport (Material's default cap is 560px).
+  --mat-dialog-container-max-width: 95vw;
+  --mat-dialog-container-min-width: 280px;
+  --mat-dialog-content-padding: 8px 28px 4px;
+  --mat-dialog-with-actions-content-padding: 8px 28px 4px;
+  --mat-dialog-actions-padding: 12px 28px 24px;
+  --mat-dialog-headline-padding: 24px 28px 8px;
+}
+
+// Without a filled background the field needs no inner side padding; text aligns with the dialog edge.
+.mat-mdc-form-field .mdc-text-field--filled { padding-inline: 2px; }
+.mat-mdc-form-field .mat-mdc-form-field-icon-prefix { padding-inline: 0 8px; color: var(--crm-ink-soft); }
+.mat-mdc-form-field textarea.mat-mdc-input-element { resize: vertical; min-height: 24px; }
+.mat-mdc-form-field-hint-wrapper, .mat-mdc-form-field-error-wrapper { padding-inline: 2px; }
+
+// Dialog forms lay fields out with even spacing.
+.crm-dialog-form { display: flex; flex-direction: column; gap: 6px; }
+.crm-dialog-form .crm-form-grid { gap: 6px 24px; }
+
+@media (max-width: 720px) {
+  .crm-page { padding: 20px 16px 32px; }
+  .crm-hide-sm { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
